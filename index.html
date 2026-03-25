@@ -129,6 +129,37 @@
             background: rgba(239, 68, 68, 0.2);
         }
 
+        .secondary-btn {
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.28);
+            color: #dbeafe;
+        }
+
+        .secondary-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .warning-btn {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fde68a;
+        }
+
+        .warning-btn:hover {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        .modal-backdrop {
+            background: rgba(2, 6, 23, 0.82);
+            backdrop-filter: blur(6px);
+        }
+
+        .modal-panel {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(2, 6, 23, 0.98) 100%);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        }
+
         .chart-card {
             min-height: 400px;
         }
@@ -137,6 +168,31 @@
             color: #94a3b8;
             font-size: 0.875rem;
             margin-bottom: 1rem;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            background: rgba(148, 163, 184, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            color: #cbd5e1;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        .task-row.dragging {
+            opacity: 0.55;
+            transform: scale(0.995);
+        }
+        .task-row.drag-over {
+            outline: 2px dashed rgba(167, 139, 250, 0.8);
+            outline-offset: -4px;
+            background: rgba(139, 92, 246, 0.08);
+        }
+        .subtask-item {
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+        }
+        .subtask-done {
+            text-decoration: line-through;
+            color: #94a3b8;
         }
     </style>
 </head>
@@ -276,6 +332,9 @@
                                 <i class="fa-solid fa-file-excel"></i>Exportar Excel
                             </button>
                             <div id="pagination-controls" class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-700"></div>
+                            <button onclick="toggleNewTaskForm()" class="flex items-center gap-3 bg-violet-600 hover:bg-violet-500 px-6 py-3 rounded-3xl font-semibold text-sm shadow-lg whitespace-nowrap">
+                                <i class="fa-solid fa-plus"></i>Nova tarefa
+                            </button>
                             <button onclick="saveTimeline()" class="flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 px-8 py-3 rounded-3xl font-semibold text-sm shadow-lg whitespace-nowrap">
                                 <i class="fa-solid fa-floppy-disk"></i>Salvar Alterações
                             </button>
@@ -319,6 +378,113 @@
                         </div>
                     </div>
                     <p id="timeline-summary" class="text-sm text-slate-400 mt-4"></p>
+
+                    <div id="new-task-panel" class="hidden mt-8 glass-card rounded-3xl p-6">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+                            <div>
+                                <h3 class="text-xl font-semibold">Cadastro manual de tarefa</h3>
+                                <p class="text-sm text-slate-400 mt-1">Adicione uma nova tarefa ao cronograma sem precisar importar planilha.</p>
+                            </div>
+                            <button onclick="toggleNewTaskForm(false)" class="text-slate-300 hover:text-white text-sm font-medium">
+                                <i class="fa-solid fa-xmark mr-2"></i>Fechar
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Equipe</label>
+                                <input id="new-task-team" list="team-options" class="filter-input" placeholder="Ex.: Desenvolvimento VAA" oninput="updateResponsibleSuggestions('new')" onchange="updateResponsibleSuggestions('new')">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Tarefa / Entrega</label>
+                                <input id="new-task-name" class="filter-input" placeholder="Digite a tarefa">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Responsável</label>
+                                <input id="new-task-responsible" list="responsible-options" class="filter-input" placeholder="Nome do responsável"><p class="text-xs text-amber-300 mt-2">Somente responsáveis cadastrados na equipe podem ser salvos.</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Status</label>
+                                <select id="new-task-status" class="filter-select">
+                                    <option value="em dia">Em dia</option>
+                                    <option value="concluído">Concluído</option>
+                                    <option value="atrasado">Atrasado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Data de início</label>
+                                <input id="new-task-start" type="date" class="filter-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Data estimada</label>
+                                <input id="new-task-est-end" type="date" class="filter-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">% concluído</label>
+                                <input id="new-task-progress" type="number" min="0" max="100" class="filter-input" placeholder="0 a 100">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="addManualTask()" class="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-5 py-3 rounded-2xl font-semibold text-sm">
+                                    <i class="fa-solid fa-plus"></i>Adicionar tarefa
+                                </button>
+                            </div>
+                        </div>
+                        <datalist id="team-options"></datalist>
+                        <p id="new-task-feedback" class="hidden mt-4 text-sm rounded-2xl px-4 py-3 border"></p>
+                    </div>
+
+                    <div class="mt-8 glass-card rounded-3xl p-6">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+                            <div>
+                                <h3 class="text-xl font-semibold">Cadastro e edição de equipes</h3>
+                                <p class="text-sm text-slate-400 mt-1">Cadastre novas equipes, ajuste nomes e mantenha a lista de responsáveis atualizada.</p>
+                            </div>
+                            <button onclick="resetTeamForm()" class="text-slate-300 hover:text-white text-sm font-medium">
+                                <i class="fa-solid fa-rotate-left mr-2"></i>Limpar formulário
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Equipe existente</label>
+                                <select id="team-manager-select" class="filter-select" onchange="populateTeamForm(this.value)">
+                                    <option value="">Selecionar equipe</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Nome da equipe</label>
+                                <input id="team-manager-name" class="filter-input" placeholder="Ex.: Jurídico" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Cor da equipe</label>
+                                <select id="team-manager-color" class="filter-select">
+                                    <option value="indigo">Índigo</option>
+                                    <option value="amber">Âmbar</option>
+                                    <option value="violet">Violeta</option>
+                                    <option value="emerald">Esmeralda</option>
+                                    <option value="sky">Azul</option>
+                                    <option value="rose">Rosa</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-2">Responsáveis</label>
+                                <input id="team-manager-members" class="filter-input" placeholder="Separe por vírgula" />
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3 mt-5">
+                            <button onclick="saveTeamFromForm()" class="bg-emerald-600 hover:bg-emerald-500 px-5 py-3 rounded-2xl text-sm font-semibold">
+                                <i class="fa-solid fa-users mr-2"></i>Salvar equipe
+                            </button>
+                            <button onclick="deleteSelectedTeam()" class="danger-btn px-5 py-3 rounded-2xl text-sm font-semibold">
+                                <i class="fa-solid fa-trash-can mr-2"></i>Excluir equipe
+                            </button>
+                        </div>
+
+                        <p id="team-feedback" class="hidden mt-4 text-sm rounded-2xl px-4 py-3 border"></p>
+
+                        <div id="teams-list" class="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-6"></div>
+                    </div>
                 </div>
 
                 <div id="tasks" class="hidden">
@@ -329,13 +495,98 @@
         </div>
     </div>
 
+
+    <datalist id="team-options"></datalist>
+    <datalist id="responsible-options"></datalist>
+    <datalist id="modal-responsible-options"></datalist>
+
+    <div id="task-modal" class="hidden fixed inset-0 z-50 modal-backdrop p-4 sm:p-8">
+        <div class="max-w-4xl mx-auto modal-panel rounded-3xl p-6 sm:p-8 mt-4 sm:mt-10">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold">Editar tarefa</h3>
+                    <p class="text-sm text-slate-400 mt-1">Atualize os dados da tarefa em um formulário completo.</p>
+                </div>
+                <button onclick="closeTaskModal()" class="text-slate-300 hover:text-white text-sm font-medium">
+                    <i class="fa-solid fa-xmark mr-2"></i>Fechar
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">Equipe</label>
+                    <select id="modal-task-team" class="filter-select" onchange="updateResponsibleSuggestions('modal')"></select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">Tarefa / Entrega</label>
+                    <input id="modal-task-name" class="filter-input" placeholder="Digite a tarefa">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">Responsável</label>
+                    <input id="modal-task-responsible" list="modal-responsible-options" class="filter-input" placeholder="Nome do responsável"><p class="text-xs text-amber-300 mt-2">Selecione apenas um responsável cadastrado na equipe.</p>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">Status</label>
+                    <select id="modal-task-status" class="filter-select">
+                        <option value="em dia">Em dia</option>
+                        <option value="concluído">Concluído</option>
+                        <option value="atrasado">Atrasado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">Data de início</label>
+                    <input id="modal-task-start" type="date" class="filter-input">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">Data estimada</label>
+                    <input id="modal-task-est-end" type="date" class="filter-input">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">% concluído</label>
+                    <input id="modal-task-progress" type="number" min="0" max="100" class="filter-input">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="duplicateCurrentModalTask()" class="warning-btn w-full px-5 py-3 rounded-2xl text-sm font-semibold">
+                        <i class="fa-solid fa-copy mr-2"></i>Duplicar tarefa
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-end gap-3 mt-6">
+                <button onclick="closeTaskModal()" class="px-5 py-3 rounded-2xl border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 text-sm font-semibold">Cancelar</button>
+                <button onclick="saveTaskModal()" class="bg-violet-600 hover:bg-violet-500 px-6 py-3 rounded-2xl text-sm font-semibold">Salvar alterações</button>
+            </div>
+            
+
+            <div class="mt-8">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                    <div>
+                        <h4 class="text-lg font-semibold">Subtarefas</h4>
+                        <p class="text-sm text-slate-400">Adicione etapas menores para acompanhar o andamento da tarefa.</p>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <input id="modal-subtask-name" class="filter-input" placeholder="Nova subtarefa">
+                        <button onclick="addSubtaskFromModal()" class="secondary-btn px-4 py-3 rounded-2xl text-sm font-semibold whitespace-nowrap">
+                            <i class="fa-solid fa-plus mr-2"></i>Adicionar
+                        </button>
+                    </div>
+                </div>
+                <div id="modal-subtasks-list" class="space-y-3"></div>
+            </div>
+            <p id="task-modal-feedback" class="hidden mt-4 text-sm rounded-2xl px-4 py-3 border"></p>
+        </div>
+    </div>
+
     <script>
-        const teamMembersByGroup = {
-            "Desenvolvimento VAA": ["Ana Silva", "Carlos Mendes", "João Santos", "Mariana Costa"],
-            "TI VAA": ["Pedro Lima", "Laura Ferreira"],
-            "Operacional VAA": ["Dr. Rafael Vigna", "Equipe Operacional"],
-            "Prestador de Serviços": ["André Freitas", "Beatriz Oliveira", "Lucas Almeida", "Fernanda Costa"]
+        const defaultTeamMembersByGroup = {
+            "Desenvolvimento VAA": ["Ricardo Santana","Caio Mucci", "João Santos"],
+            "TI VAA": ["Danilo"],
+            "Operacional VAA": ["Flávia Bezzi"],
+            "Prestador de Serviços": ["André Freitas"]
         };
+
+        let teamMembersByGroup = JSON.parse(JSON.stringify(defaultTeamMembersByGroup));
+        let editingTaskRef = null;
 
         const groupColors = {
             "Desenvolvimento VAA": "indigo",
@@ -352,38 +603,373 @@
         let charts = { line: null, bar: null, pie: null };
         let activeChartPeriod = 'all';
 
+        let draggedTaskId = null;
+
+        function makeId(prefix = 'id') {
+            return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        }
+
+        function ensureTaskStructure() {
+            groups.forEach(group => {
+                group.tasks = Array.isArray(group.tasks) ? group.tasks : [];
+                group.tasks.forEach(task => {
+                    if (!task.id) task.id = makeId('task');
+                    task.subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+                    task.subtasks = task.subtasks.map(subtask => ({
+                        id: subtask?.id || makeId('subtask'),
+                        name: String(subtask?.name || '').trim(),
+                        done: Boolean(subtask?.done)
+                    })).filter(subtask => subtask.name);
+                    if (!task.responsible) task.responsible = 'Não definido';
+                });
+            });
+        }
+
+        function findGroupByName(name) {
+            return groups.find(group => group.name === name) || null;
+        }
+
+        function findTaskById(taskId) {
+            for (let gIndex = 0; gIndex < groups.length; gIndex += 1) {
+                const tIndex = groups[gIndex].tasks.findIndex(task => task.id === taskId);
+                if (tIndex !== -1) return { gIndex, tIndex, group: groups[gIndex], task: groups[gIndex].tasks[tIndex] };
+            }
+            return null;
+        }
+
+        function getTeamMembersForName(teamName) {
+            if (!teamName) return [];
+            const exact = teamMembersByGroup[teamName];
+            if (exact?.length) return exact;
+            const normalized = teamName.trim().toLowerCase();
+            const matchedKey = Object.keys(teamMembersByGroup).find(key => key.toLowerCase() === normalized || key.toLowerCase().includes(normalized) || normalized.includes(key.toLowerCase()));
+            return matchedKey ? (teamMembersByGroup[matchedKey] || []) : [];
+        }
+
+        function updateResponsibleSuggestions(context = 'new') {
+            const teamInputId = context === 'modal' ? 'modal-task-team' : 'new-task-team';
+            const responsibleInputId = context === 'modal' ? 'modal-task-responsible' : 'new-task-responsible';
+            const datalistId = context === 'modal' ? 'modal-responsible-options' : 'responsible-options';
+            const teamName = document.getElementById(teamInputId)?.value || '';
+            const members = getTeamMembersForName(teamName);
+            const datalist = document.getElementById(datalistId);
+            if (datalist) {
+                datalist.innerHTML = members.map(member => `<option value="${escapeHtml(member)}"></option>`).join('');
+            }
+            const input = document.getElementById(responsibleInputId);
+            if (input && !input.value && members.length === 1) input.value = members[0];
+        }
+
+        function renderModalSubtasks() {
+            const container = document.getElementById('modal-subtasks-list');
+            if (!container || !editingTaskRef) return;
+            const task = groups?.[editingTaskRef.gIndex]?.tasks?.[editingTaskRef.tIndex];
+            if (!task) return;
+            const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+            if (!subtasks.length) {
+                container.innerHTML = '<div class="subtask-item rounded-2xl px-4 py-4 text-sm text-slate-400">Nenhuma subtarefa cadastrada.</div>';
+                return;
+            }
+            container.innerHTML = subtasks.map((subtask, index) => `
+                <div class="subtask-item rounded-2xl px-4 py-3 flex items-center gap-3">
+                    <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${index}, this.checked)" class="w-4 h-4">
+                    <input type="text" value="${escapeHtml(subtask.name)}" onchange="renameSubtask(${index}, this.value)" class="filter-input ${subtask.done ? 'subtask-done' : ''}">
+                    <button onclick="removeSubtask(${index})" class="danger-btn px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap">
+                        <i class="fa-solid fa-trash mr-1"></i>Excluir
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addSubtaskFromModal() {
+            if (!editingTaskRef) return;
+            const input = document.getElementById('modal-subtask-name');
+            const name = input?.value.trim();
+            if (!name) {
+                showTaskModalFeedback('Digite o nome da subtarefa.', 'error');
+                return;
+            }
+            const task = groups?.[editingTaskRef.gIndex]?.tasks?.[editingTaskRef.tIndex];
+            if (!task) return;
+            task.subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+            task.subtasks.push({ id: makeId('subtask'), name, done: false });
+            input.value = '';
+            saveData();
+            renderModalSubtasks();
+            renderGroupContent();
+            renderAllTasks();
+            rebuildFilteredTimelineIfNeeded();
+        }
+
+        function toggleSubtaskDone(index, done) {
+            const task = editingTaskRef ? groups?.[editingTaskRef.gIndex]?.tasks?.[editingTaskRef.tIndex] : null;
+            if (!task?.subtasks?.[index]) return;
+            task.subtasks[index].done = Boolean(done);
+            saveData();
+            renderModalSubtasks();
+            renderGroupContent();
+            renderAllTasks();
+            rebuildFilteredTimelineIfNeeded();
+        }
+
+        function renameSubtask(index, name) {
+            const task = editingTaskRef ? groups?.[editingTaskRef.gIndex]?.tasks?.[editingTaskRef.tIndex] : null;
+            if (!task?.subtasks?.[index]) return;
+            const trimmed = String(name || '').trim();
+            if (!trimmed) {
+                showTaskModalFeedback('O nome da subtarefa não pode ficar vazio.', 'error');
+                renderModalSubtasks();
+                return;
+            }
+            task.subtasks[index].name = trimmed;
+            saveData();
+            renderModalSubtasks();
+            renderGroupContent();
+            renderAllTasks();
+            rebuildFilteredTimelineIfNeeded();
+        }
+
+        function removeSubtask(index) {
+            const task = editingTaskRef ? groups?.[editingTaskRef.gIndex]?.tasks?.[editingTaskRef.tIndex] : null;
+            if (!task?.subtasks?.[index]) return;
+            task.subtasks.splice(index, 1);
+            saveData();
+            renderModalSubtasks();
+            renderGroupContent();
+            renderAllTasks();
+            rebuildFilteredTimelineIfNeeded();
+        }
+
+        function moveTaskById(dragId, targetId) {
+            if (!dragId || !targetId || dragId === targetId) return;
+            const source = findTaskById(dragId);
+            const target = findTaskById(targetId);
+            if (!source || !target) return;
+            const [movedTask] = source.group.tasks.splice(source.tIndex, 1);
+            let targetIndex = target.group.tasks.findIndex(task => task.id === targetId);
+            if (targetIndex === -1) {
+                source.group.tasks.splice(source.tIndex, 0, movedTask);
+                return;
+            }
+            if (source.group === target.group && source.tIndex < targetIndex) targetIndex -= 1;
+            target.group.tasks.splice(targetIndex, 0, movedTask);
+            recalculateGroupProgress(source.group);
+            if (source.group !== target.group) recalculateGroupProgress(target.group);
+            saveData();
+            renderAll();
+        }
+
+        function handleTaskDragStart(taskId, event) {
+            draggedTaskId = taskId;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', taskId);
+            event.currentTarget.classList.add('dragging');
+        }
+
+        function handleTaskDragOver(taskId, event) {
+            event.preventDefault();
+            if (draggedTaskId && draggedTaskId !== taskId) event.currentTarget.classList.add('drag-over');
+            event.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleTaskDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleTaskDrop(taskId, event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+            const sourceId = event.dataTransfer.getData('text/plain') || draggedTaskId;
+            moveTaskById(sourceId, taskId);
+            draggedTaskId = null;
+        }
+
+        function handleTaskDragEnd(event) {
+            draggedTaskId = null;
+            document.querySelectorAll('.task-row').forEach(row => row.classList.remove('dragging', 'drag-over'));
+        }
+
+        function renderAll() {
+            refreshTeamOptions();
+            renderGroupTabs();
+            renderGroupContent();
+            renderAllTasks();
+            renderTeamsManager();
+            rebuildFilteredTimelineIfNeeded();
+            createAllCharts(activeChartPeriod);
+        }
+
         function defaultGroups() {
             return [
                 { id: 0, name: "Desenvolvimento VAA", color: "indigo", progress: 78, tasks: [
-                    { name: "Mapeamento de requisitos", progress: 100, responsible: "Ana Silva", start: "2026-01-05", estEnd: "2026-01-15", status: "concluído" },
-                    { name: "Protótipo da interface", progress: 85, responsible: "Carlos Mendes", start: "2026-01-16", estEnd: "2026-02-10", status: "em dia" },
-                    { name: "Integração com APIs", progress: 65, responsible: "João Santos", start: "2026-02-05", estEnd: "2026-03-20", status: "em dia" },
-                    { name: "Validação de regras de negócio", progress: 40, responsible: "Mariana Costa", start: "2026-03-01", estEnd: "2026-04-10", status: "atrasado" }
+                    { name: "Escopo Técnico", progress: 100, responsible: "João Santos", start: "2026-01-05", estEnd: "2026-01-15", status: "concluído" },
+                    { name: "Mapeamento de requisitos", progress: 85, responsible: "João Santos", start: "2026-01-16", estEnd: "2026-02-10", status: "Concluído" },
+                    { name: "Criação de Tipagem de Arquivos", progress: 65, responsible: "Caio Mucci", start: "2026-02-05", estEnd: "2026-03-20", status: "em dia" },
+                    { name: "Validação de regras de negócio", progress: 40, responsible: "João Santos", start: "2026-03-01", estEnd: "2026-04-10", status: "em dia" },
+                    { name: "Atualização de interface do Legal Control", progress: 40, responsible: "Ricardo Santana", start: "2026-03-01", estEnd: "2026-04-10", status: "em dia" }
                 ]},
                 { id: 1, name: "TI VAA", color: "amber", progress: 73, tasks: [
-                    { name: "Provisionamento do servidor", progress: 100, responsible: "Pedro Lima", start: "2026-01-08", estEnd: "2026-01-18", status: "concluído" },
-                    { name: "Segurança e backups", progress: 90, responsible: "Laura Ferreira", start: "2026-01-19", estEnd: "2026-02-15", status: "em dia" },
-                    { name: "Monitoramento do ambiente", progress: 55, responsible: "Pedro Lima", start: "2026-02-16", estEnd: "2026-03-30", status: "em dia" }
+                    { name: "Provisionamento do servidor", progress: 100, responsible: "Danilo", start: "2026-01-08", estEnd: "2026-01-18", status: "concluído" },
+                    { name: "Monitoramento do ambiente", progress: 55, responsible: "Danilo", start: "2026-02-16", estEnd: "2026-03-30", status: "em dia" }
                 ]},
                 { id: 2, name: "Operacional VAA", color: "violet", progress: 25, tasks: [
-                    { name: "Treinamento da equipe", progress: 35, responsible: "Dr. Rafael Vigna", start: "2026-03-03", estEnd: "2026-04-12", status: "em dia" },
-                    { name: "Criação dos fluxos internos", progress: 20, responsible: "Equipe Operacional", start: "2026-03-10", estEnd: "2026-04-20", status: "atrasado" }
+                    { name: "Criação de teses modelo", progress: 35, responsible: "Flávia Bezzi", start: "2026-03-03", estEnd: "2026-04-12", status: "em dia" },
+                    { name: "Criação de pastas na rede", progress: 20, responsible: "Flávia Bezzi", start: "2026-03-10", estEnd: "2026-04-20", status: "em dia" }
                 ]},
                 { id: 3, name: "Prestador de Serviços", color: "emerald", progress: 5, tasks: [
-                    { name: "Kickoff com fornecedor", progress: 10, responsible: "André Freitas", start: "2026-03-15", estEnd: "2026-03-25", status: "atrasado" },
-                    { name: "Entrega da documentação", progress: 0, responsible: "Beatriz Oliveira", start: "2026-03-20", estEnd: "2026-04-05", status: "em dia" }
+                    { name: "Criação de sistema de busca no banco de dados", progress: 10, responsible: "André Freitas", start: "2026-03-15", estEnd: "2026-03-25", status: "em dia" },
+                    { name: "Criação de sistema de confecção de teses", progress: 10, responsible: "André Freitas", start: "2026-03-15", estEnd: "2026-03-25", status: "em dia" },
+                    { name: "Mapeamento banco", progress: 0, responsible: "André Freitas", start: "2026-03-20", estEnd: "2026-04-05", status: "em dia" }
                 ]}
             ];
         }
 
         function loadData() {
             const saved = localStorage.getItem('vignaIA_data');
+            const savedTeams = localStorage.getItem('vignaIA_teamMembers');
             groups = saved ? JSON.parse(saved) : defaultGroups();
+            teamMembersByGroup = savedTeams ? JSON.parse(savedTeams) : JSON.parse(JSON.stringify(defaultTeamMembersByGroup));
+            ensureTaskStructure();
+            syncTeamMembersFromGroups();
             recalculateAllGroupProgress();
+            refreshTeamOptions();
+            updateResponsibleSuggestions('new');
+            updateResponsibleSuggestions('modal');
+            renderTeamsManager();
         }
 
         function saveData() {
             localStorage.setItem('vignaIA_data', JSON.stringify(groups));
+            localStorage.setItem('vignaIA_teamMembers', JSON.stringify(teamMembersByGroup));
+        }
+
+        function syncTeamMembersFromGroups() {
+            const nextTeamMembers = {};
+            groups.forEach(group => {
+                nextTeamMembers[group.name] = [...new Set((teamMembersByGroup[group.name] || []).map(member => String(member || '').trim()).filter(Boolean))];
+            });
+            teamMembersByGroup = nextTeamMembers;
+        }
+
+        function refreshTeamOptions() {
+            const optionsHtml = groups.map(group => `<option value="${escapeHtml(group.name)}">${escapeHtml(group.name)}</option>`).join('');
+            const modalSelect = document.getElementById('modal-task-team');
+            if (modalSelect) {
+                modalSelect.innerHTML = optionsHtml;
+            }
+            const teamDatalist = document.getElementById('team-options');
+            if (teamDatalist) teamDatalist.innerHTML = optionsHtml;
+            const managerSelect = document.getElementById('team-manager-select');
+            if (managerSelect) {
+                managerSelect.innerHTML = `<option value="">Selecionar equipe</option>${groups.map(group => `<option value="${escapeHtml(group.name)}">${escapeHtml(group.name)}</option>`).join('')}`;
+            }
+            updateResponsibleSuggestions('new');
+            updateResponsibleSuggestions('modal');
+        }
+
+        function toggleNewTaskForm(forceState) {
+            const panel = document.getElementById('new-task-panel');
+            if (!panel) return;
+            const shouldShow = typeof forceState === 'boolean' ? forceState : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !shouldShow);
+            if (shouldShow) {
+                refreshTeamOptions();
+                document.getElementById('new-task-name')?.focus();
+            }
+        }
+
+        function showNewTaskFeedback(message, type = 'success') {
+            const box = document.getElementById('new-task-feedback');
+            if (!box) return;
+            box.className = 'mt-4 text-sm rounded-2xl px-4 py-3 border';
+            if (type === 'success') {
+                box.classList.add('bg-emerald-500/10', 'border-emerald-400/30', 'text-emerald-200');
+            } else {
+                box.classList.add('bg-rose-500/10', 'border-rose-400/30', 'text-rose-200');
+            }
+            box.textContent = message;
+            box.classList.remove('hidden');
+        }
+
+        function resetNewTaskForm() {
+            ['new-task-team', 'new-task-name', 'new-task-responsible', 'new-task-start', 'new-task-est-end', 'new-task-progress'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const status = document.getElementById('new-task-status');
+            if (status) status.value = 'em dia';
+        }
+
+        function slugifyTeamName(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[̀-ͯ]/g, '')
+                .replace(/[^a-zA-Z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '')
+                .toLowerCase();
+        }
+
+        function ensureGroupExistsByName(teamName) {
+            const normalizedName = String(teamName || '').trim();
+            if (!normalizedName) return null;
+            let group = groups.find(item => item.name.toLowerCase() === normalizedName.toLowerCase());
+            if (group) return group;
+
+            const fallbackColors = ['indigo', 'amber', 'violet', 'emerald', 'sky', 'rose'];
+            const color = fallbackColors[groups.length % fallbackColors.length];
+            group = {
+                id: groups.length ? Math.max(...groups.map(item => Number(item.id) || 0)) + 1 : 1,
+                name: normalizedName,
+                color,
+                progress: 0,
+                tasks: []
+            };
+            groups.push(group);
+            if (!teamMembersByGroup[normalizedName]) {
+                teamMembersByGroup[normalizedName] = [];
+            }
+            refreshTeamOptions();
+            return group;
+        }
+
+        function addManualTask() {
+            const team = document.getElementById('new-task-team')?.value.trim() || '';
+            const name = document.getElementById('new-task-name')?.value.trim() || '';
+            const responsibleInput = document.getElementById('new-task-responsible')?.value.trim() || '';
+            const start = normalizeDate(document.getElementById('new-task-start')?.value || '');
+            const estEnd = normalizeDate(document.getElementById('new-task-est-end')?.value || '');
+            const status = normalizeStatus(document.getElementById('new-task-status')?.value || 'em dia');
+            const progress = parseProgress(document.getElementById('new-task-progress')?.value || 0);
+
+            if (!team || !name) {
+                showNewTaskFeedback('Preencha pelo menos a equipe e o nome da tarefa.', 'error');
+                return;
+            }
+
+            const group = ensureGroupExistsByName(team);
+            if (!group) {
+                showNewTaskFeedback('Não foi possível identificar a equipe da tarefa.', 'error');
+                return;
+            }
+
+            const responsible = getValidatedResponsible(group.name, responsibleInput) || 'Responsável não informado';
+
+            group.tasks.push({
+                id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                name,
+                responsible,
+                start,
+                estEnd,
+                status,
+                progress,
+                subtasks: []
+            });
+
+            recalculateGroupProgress(group);
+            saveData();
+            resetNewTaskForm();
+            renderAll();
+            showNewTaskFeedback('Tarefa adicionada com sucesso ao cronograma.', 'success');
         }
 
         function recalculateGroupProgress(group) {
@@ -453,6 +1039,11 @@
             return Math.max(0, Math.min(100, Math.round(number)));
         }
 
+        function getValidatedResponsible(teamName, responsible) {
+            const allowedMembers = teamMembersByGroup[teamName] || [];
+            return allowedMembers.includes(responsible) ? responsible : '';
+        }
+
         function showImportFeedback(message, type = 'success') {
             const el = document.getElementById('import-feedback');
             el.classList.remove('hidden', 'border-emerald-500/40', 'text-emerald-300', 'bg-emerald-500/10', 'border-red-500/40', 'text-red-300', 'bg-red-500/10');
@@ -477,6 +1068,157 @@
             currentGroupIndex = index;
             renderGroupTabs();
             renderGroupContent();
+        }
+
+        function showTeamFeedback(message, type = 'success') {
+            const box = document.getElementById('team-feedback');
+            if (!box) return;
+            box.className = 'mt-4 text-sm rounded-2xl px-4 py-3 border';
+            if (type === 'success') {
+                box.classList.add('bg-emerald-500/10', 'border-emerald-400/30', 'text-emerald-200');
+            } else {
+                box.classList.add('bg-rose-500/10', 'border-rose-400/30', 'text-rose-200');
+            }
+            box.textContent = message;
+            box.classList.remove('hidden');
+        }
+
+        function resetTeamForm() {
+            const select = document.getElementById('team-manager-select');
+            const name = document.getElementById('team-manager-name');
+            const color = document.getElementById('team-manager-color');
+            const members = document.getElementById('team-manager-members');
+            if (select) select.value = '';
+            if (name) name.value = '';
+            if (color) color.value = 'indigo';
+            if (members) members.value = '';
+        }
+
+        function populateTeamForm(teamName) {
+            const group = groups.find(item => item.name === teamName);
+            if (!group) {
+                resetTeamForm();
+                return;
+            }
+            document.getElementById('team-manager-name').value = group.name;
+            document.getElementById('team-manager-color').value = group.color || 'indigo';
+            document.getElementById('team-manager-members').value = (teamMembersByGroup[group.name] || []).join(', ');
+        }
+
+        function renderTeamsManager() {
+            refreshTeamOptions();
+            const container = document.getElementById('teams-list');
+            if (!container) return;
+            if (!groups.length) {
+                container.innerHTML = '<div class="glass-card rounded-3xl p-5 text-slate-400">Nenhuma equipe cadastrada.</div>';
+                return;
+            }
+            container.innerHTML = groups.map(group => {
+                const members = teamMembersByGroup[group.name] || [];
+                return `
+                    <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-5">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <p class="font-semibold text-lg">${escapeHtml(group.name)}</p>
+                                <p class="text-xs text-slate-400">${group.tasks.length} tarefa(s) vinculada(s)</p>
+                            </div>
+                            <span class="status-badge bg-white/10 text-slate-200">${escapeHtml(group.color || 'indigo')}</span>
+                        </div>
+                        <p class="text-sm text-slate-300">Responsáveis: ${members.length ? escapeHtml(members.join(', ')) : 'Não informados'}</p>
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            <button onclick="document.getElementById('team-manager-select').value='${escapeHtml(group.name)}'; populateTeamForm('${escapeHtml(group.name)}')" class="secondary-btn px-4 py-2 rounded-2xl text-xs font-semibold">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i>Editar
+                            </button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function saveTeamFromForm() {
+            const selectedName = document.getElementById('team-manager-select')?.value || '';
+            const name = document.getElementById('team-manager-name')?.value.trim() || '';
+            const color = document.getElementById('team-manager-color')?.value || 'indigo';
+            const membersRaw = document.getElementById('team-manager-members')?.value || '';
+            const members = [...new Set(membersRaw.split(',').map(item => item.trim()).filter(Boolean))];
+
+            if (!name) {
+                showTeamFeedback('Informe o nome da equipe.', 'error');
+                return;
+            }
+
+            const duplicated = groups.find(group => group.name.toLowerCase() === name.toLowerCase() && group.name !== selectedName);
+            if (duplicated) {
+                showTeamFeedback('Já existe uma equipe com esse nome.', 'error');
+                return;
+            }
+
+            if (selectedName) {
+                const group = groups.find(item => item.name === selectedName);
+                if (!group) {
+                    showTeamFeedback('Equipe selecionada não encontrada.', 'error');
+                    return;
+                }
+                group.name = name;
+                group.color = color;
+                if (selectedName !== name) {
+                    teamMembersByGroup[name] = members;
+                    delete teamMembersByGroup[selectedName];
+                } else {
+                    teamMembersByGroup[name] = members;
+                }
+            } else {
+                const group = ensureGroupExistsByName(name);
+                group.color = color;
+                teamMembersByGroup[group.name] = members;
+            }
+
+            syncTeamMembersFromGroups();
+            groups.forEach(group => {
+                group.tasks.forEach(task => {
+                    if (group.name === name && task.responsible && !(teamMembersByGroup[group.name] || []).includes(task.responsible)) {
+                        task.responsible = 'Responsável não informado';
+                    }
+                });
+            });
+            saveData();
+            renderGroupTabs();
+            renderGroupContent();
+            renderAllTasks();
+            renderTeamsManager();
+            rebuildFilteredTimelineIfNeeded();
+            createAllCharts(activeChartPeriod);
+            document.getElementById('team-manager-select').value = name;
+            populateTeamForm(name);
+            showTeamFeedback('Equipe salva com sucesso.', 'success');
+        }
+
+        function deleteSelectedTeam() {
+            const selectedName = document.getElementById('team-manager-select')?.value || '';
+            if (!selectedName) {
+                showTeamFeedback('Selecione uma equipe para excluir.', 'error');
+                return;
+            }
+            const group = groups.find(item => item.name === selectedName);
+            if (!group) {
+                showTeamFeedback('Equipe selecionada não encontrada.', 'error');
+                return;
+            }
+            if (group.tasks.length) {
+                showTeamFeedback('Não é possível excluir uma equipe que ainda possui tarefas vinculadas.', 'error');
+                return;
+            }
+            if (!confirm(`Deseja excluir a equipe "${selectedName}"?`)) return;
+            groups = groups.filter(item => item.name !== selectedName);
+            delete teamMembersByGroup[selectedName];
+            saveData();
+            renderGroupTabs();
+            renderGroupContent();
+            renderAllTasks();
+            renderTeamsManager();
+            rebuildFilteredTimelineIfNeeded();
+            createAllCharts(activeChartPeriod);
+            resetTeamForm();
+            showTeamFeedback('Equipe excluída com sucesso.', 'success');
         }
 
         function setActiveNav(section) {
@@ -509,7 +1251,7 @@
             let all = [];
             groups.forEach((group, gIdx) => {
                 group.tasks.forEach((task, tIdx) => {
-                    all.push({ ...task, gIdx, tIdx, groupName: group.name });
+                    all.push({ ...task, id: task.id || makeId('task'), subtasks: Array.isArray(task.subtasks) ? task.subtasks : [], gIdx, tIdx, groupName: group.name });
                 });
             });
             return all;
@@ -588,6 +1330,7 @@
                             <div class="flex-1">
                                 <p class="text-lg font-medium">${task.name}</p>
                                 <p class="text-sm text-slate-400">Responsável: <span class="font-medium">${task.responsible}</span></p>
+                                <p class="text-xs text-slate-500 mt-1">Subtarefas: ${(task.subtasks || []).filter(subtask => subtask.done).length}/${(task.subtasks || []).length}</p>
                             </div>
                             <div class="w-56"><div class="progress-bar"><div class="progress-fill bg-gradient-to-r from-${color}-400 to-${color}-500" style="width: ${task.progress}%"></div></div></div>
                             <div class="w-32">${getStatusBadge(task.status)}</div>
@@ -655,10 +1398,22 @@
             let html = '';
             paginatedTasks.forEach((task) => {
                 const availableMembers = teamMembersByGroup[task.groupName] || [];
-                const allMembers = [...new Set([...(availableMembers || []), task.responsible].filter(Boolean))];
+                const responsibleAllowed = availableMembers.includes(task.responsible);
+                const doneCount = (task.subtasks || []).filter(subtask => subtask.done).length;
+                const totalSubtasks = (task.subtasks || []).length;
 
                 html += `
-                    <tr class="task-row hover:bg-slate-800/50">
+                    <tr class="task-row hover:bg-slate-800/50" draggable="true"
+                        ondragstart="handleTaskDragStart('${task.id}', event)"
+                        ondragover="handleTaskDragOver('${task.id}', event)"
+                        ondragleave="handleTaskDragLeave(event)"
+                        ondrop="handleTaskDrop('${task.id}', event)"
+                        ondragend="handleTaskDragEnd(event)">
+                        <td class="px-4 py-6 text-center">
+                            <button type="button" class="drag-handle px-3 py-2 rounded-2xl text-xs" title="Arraste para reordenar">
+                                <i class="fa-solid fa-grip-vertical"></i>
+                            </button>
+                        </td>
                         <td class="px-6 py-6 font-medium text-xs text-slate-400 uppercase">${escapeHtml(task.groupName)}</td>
                         <td class="px-6 py-6">
                             <input
@@ -668,12 +1423,15 @@
                                 class="inline-edit-input"
                                 placeholder="Nome da tarefa"
                             >
+                            <div class="text-xs text-slate-400 mt-2">Subtarefas: ${doneCount}/${totalSubtasks}</div>
                         </td>
                         <td class="px-6 py-6">
                             <div class="inline-block">
                                 <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'responsible', this.value)" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-violet-500 outline-none select-full-name">
-                                    ${allMembers.map(member => `<option value="${escapeHtml(member)}" ${task.responsible === member ? 'selected' : ''}>${escapeHtml(member)}</option>`).join('')}
+                                    ${!responsibleAllowed ? `<option value="" selected>Selecione um responsável</option>` : ''}
+                                    ${availableMembers.map(member => `<option value="${escapeHtml(member)}" ${task.responsible === member ? 'selected' : ''}>${escapeHtml(member)}</option>`).join('')}
                                 </select>
+                                ${!responsibleAllowed && task.responsible ? `<div class="text-xs text-amber-300 mt-2">Atual: ${escapeHtml(task.responsible)} (não cadastrado na equipe)</div>` : ''}
                             </div>
                         </td>
                         <td class="px-6 py-6">
@@ -698,16 +1456,28 @@
                             </div>
                         </td>
                         <td class="px-6 py-6 text-center">
-                            <button onclick="deleteTask(${task.gIdx}, ${task.tIdx})" class="danger-btn px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap">
-                                <i class="fa-solid fa-trash-can mr-1"></i>Excluir
-                            </button>
+                            <div class="flex items-center justify-center gap-2 flex-wrap">
+                                <button onclick="openTaskModal(${task.gIdx}, ${task.tIdx})" class="secondary-btn px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap">
+                                    <i class="fa-solid fa-pen-to-square mr-1"></i>Modal
+                                </button>
+                                <button onclick="duplicateTask(${task.gIdx}, ${task.tIdx})" class="warning-btn px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap">
+                                    <i class="fa-solid fa-copy mr-1"></i>Duplicar
+                                </button>
+                                <button onclick="deleteTask(${task.gIdx}, ${task.tIdx})" class="danger-btn px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap">
+                                    <i class="fa-solid fa-trash mr-1"></i>Excluir
+                                </button>
+                            </div>
                         </td>
                     </tr>`;
             });
 
-            document.getElementById('timeline-body').innerHTML = html || `<tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">Nenhum registro encontrado com os filtros aplicados.</td></tr>`;
-            renderPaginationControls(totalPages, totalRows);
-            document.getElementById('timeline-summary').textContent = `Exibindo ${paginatedTasks.length} de ${totalRows} tarefa(s) encontrada(s).`;
+            if (!html) {
+                html = `<tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">Nenhuma tarefa encontrada com os filtros aplicados.</td></tr>`;
+            }
+
+            document.getElementById('timeline-body').innerHTML = html;
+            document.getElementById('timeline-summary').textContent = `${totalRows} tarefa(s) encontradas • página ${currentPage} de ${totalPages}`;
+            renderPaginationControls(totalPages);
         }
 
         function renderPaginationControls(totalPages, totalRows) {
@@ -744,6 +1514,7 @@
                             <div>
                                 <p class="font-medium">${task.name}</p>
                                 <p class="text-sm text-slate-400">Responsável: ${task.responsible}</p>
+                                <p class="text-xs text-slate-500 mt-1">Subtarefas: ${(task.subtasks || []).filter(subtask => subtask.done).length}/${(task.subtasks || []).length}</p>
                             </div>
                             <div class="flex items-center gap-6">
                                 ${getStatusBadge(task.status)}
@@ -761,24 +1532,127 @@
             return `<span class="status-badge bg-red-400/20 text-red-400">Atrasado</span>`;
         }
 
+        function showTaskModalFeedback(message, type = 'success') {
+            const box = document.getElementById('task-modal-feedback');
+            if (!box) return;
+            box.className = 'hidden mt-4 text-sm rounded-2xl px-4 py-3 border';
+            box.classList.remove('hidden');
+            if (type === 'success') {
+                box.classList.add('bg-emerald-500/10', 'border-emerald-400/30', 'text-emerald-200');
+            } else {
+                box.classList.add('bg-rose-500/10', 'border-rose-400/30', 'text-rose-200');
+            }
+            box.textContent = message;
+        }
+
+        function openTaskModal(gIndex, tIndex) {
+            const group = groups[gIndex];
+            const task = group?.tasks?.[tIndex];
+            if (!group || !task) return;
+            editingTaskRef = { gIndex, tIndex };
+            refreshTeamOptions();
+            document.getElementById('modal-task-team').value = group.name;
+            document.getElementById('modal-task-name').value = task.name || '';
+            document.getElementById('modal-task-responsible').value = (teamMembersByGroup[group.name] || []).includes(task.responsible) ? (task.responsible || '') : '';
+            document.getElementById('modal-task-status').value = normalizeStatus(task.status);
+            document.getElementById('modal-task-start').value = task.start || '';
+            document.getElementById('modal-task-est-end').value = task.estEnd || '';
+            document.getElementById('modal-task-progress').value = Number(task.progress || 0);
+            document.getElementById('modal-subtask-name').value = '';
+            updateResponsibleSuggestions('modal');
+            renderModalSubtasks();
+            document.getElementById('task-modal-feedback').classList.add('hidden');
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function closeTaskModal() {
+            editingTaskRef = null;
+            document.getElementById('modal-subtask-name').value = '';
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        function saveTaskModal() {
+            if (!editingTaskRef) return;
+            const currentGroup = groups[editingTaskRef.gIndex];
+            const task = currentGroup?.tasks?.[editingTaskRef.tIndex];
+            if (!currentGroup || !task) return;
+
+            const team = document.getElementById('modal-task-team').value;
+            const name = document.getElementById('modal-task-name').value.trim();
+            const responsible = document.getElementById('modal-task-responsible').value.trim();
+            const status = normalizeStatus(document.getElementById('modal-task-status').value);
+            const start = normalizeDate(document.getElementById('modal-task-start').value);
+            const estEnd = normalizeDate(document.getElementById('modal-task-est-end').value);
+            const progress = parseProgress(document.getElementById('modal-task-progress').value || 0);
+
+            if (!team || !name) {
+                showTaskModalFeedback('Preencha a equipe e o nome da tarefa.', 'error');
+                return;
+            }
+
+            const targetGroup = ensureGroupExistsByName(team);
+            const allowedMembers = teamMembersByGroup[targetGroup.name] || [];
+            const normalizedResponsible = allowedMembers.includes(responsible) ? responsible : 'Responsável não informado';
+            const updatedTask = { ...task, name, responsible: normalizedResponsible, status, start, estEnd, progress, subtasks: Array.isArray(task.subtasks) ? task.subtasks : [] };
+
+            if (targetGroup.name !== currentGroup.name) {
+                currentGroup.tasks.splice(editingTaskRef.tIndex, 1);
+                targetGroup.tasks.push(updatedTask);
+                recalculateGroupProgress(currentGroup);
+                recalculateGroupProgress(targetGroup);
+            } else {
+                currentGroup.tasks[editingTaskRef.tIndex] = updatedTask;
+                recalculateGroupProgress(currentGroup);
+            }
+
+            syncTeamMembersFromGroups();
+            saveData();
+            renderAll();
+            showTaskModalFeedback('Tarefa atualizada com sucesso.', 'success');
+            setTimeout(closeTaskModal, 450);
+        }
+
+        function duplicateTask(gIndex, tIndex) {
+            const group = groups[gIndex];
+            const task = group?.tasks?.[tIndex];
+            if (!group || !task) return;
+            const copy = {
+                ...task,
+                id: makeId('task'),
+                name: `${task.name} (cópia)`,
+                progress: 0,
+                status: 'em dia',
+                subtasks: (task.subtasks || []).map(subtask => ({ ...subtask, id: makeId('subtask') }))
+            };
+            group.tasks.splice(tIndex + 1, 0, copy);
+            recalculateGroupProgress(group);
+            syncTeamMembersFromGroups();
+            saveData();
+            renderGroupContent();
+            renderAllTasks();
+            renderTeamsManager();
+            rebuildFilteredTimelineIfNeeded();
+            createAllCharts(activeChartPeriod);
+        }
+
+        function duplicateCurrentModalTask() {
+            if (!editingTaskRef) return;
+            duplicateTask(editingTaskRef.gIndex, editingTaskRef.tIndex);
+            showTaskModalFeedback('Cópia criada com sucesso.', 'success');
+        }
+
         function updateTask(gIndex, tIndex, field, value) {
             if (!groups[gIndex] || !groups[gIndex].tasks[tIndex]) return;
             if (field === 'progress') value = Math.max(0, Math.min(100, Number(value || 0)));
             if (field === 'status') value = normalizeStatus(value);
             if (field === 'name') value = String(value || '').trim() || 'Nova tarefa';
+            if (field === 'responsible') value = getValidatedResponsible(groups[gIndex].name, String(value || '').trim()) || 'Responsável não informado';
 
             groups[gIndex].tasks[tIndex][field] = value;
             recalculateGroupProgress(groups[gIndex]);
+            syncTeamMembersFromGroups();
             saveData();
-            renderGroupContent();
-            renderAllTasks();
-
-            if (!document.getElementById('timeline').classList.contains('hidden')) {
-                rebuildFilteredTimelineIfNeeded();
-            }
-            if (!document.getElementById('charts').classList.contains('hidden')) {
-                createAllCharts(activeChartPeriod);
-            }
+            renderAll();
         }
 
         function deleteTask(gIndex, tIndex) {
@@ -790,22 +1664,16 @@
 
             groups[gIndex].tasks.splice(tIndex, 1);
             recalculateGroupProgress(groups[gIndex]);
+            syncTeamMembersFromGroups();
             saveData();
-            renderGroupTabs();
             if (currentGroupIndex >= groups.length) currentGroupIndex = Math.max(groups.length - 1, 0);
-            renderGroupContent();
-            renderAllTasks();
-
-            if (!document.getElementById('timeline').classList.contains('hidden')) {
-                rebuildFilteredTimelineIfNeeded();
-            }
-            if (!document.getElementById('charts').classList.contains('hidden')) {
-                createAllCharts(activeChartPeriod);
-            }
+            renderAll();
         }
 
         function saveTimeline() {
+            syncTeamMembersFromGroups();
             saveData();
+            renderTeamsManager();
             alert('✅ Alterações do cronograma salvas com sucesso!');
         }
 
@@ -1046,6 +1914,7 @@
 
             let imported = 0;
             let ignored = 0;
+            let invalidResponsible = 0;
 
             rows.forEach(row => {
                 const team = String(row['Equipe'] || row['equipe'] || '').trim();
@@ -1062,33 +1931,37 @@
                 }
 
                 const group = ensureTeamExists(team);
-                if (responsible) {
-                    teamMembersByGroup[team] = [...new Set([...(teamMembersByGroup[team] || []), responsible])];
+                const validation = validateResponsibleSelection(group.name, responsible);
+                if (!validation.valid) {
+                    invalidResponsible += 1;
+                    return;
                 }
 
                 group.tasks.push({
+                    id: makeId('task'),
                     name: taskName,
-                    responsible: responsible || (teamMembersByGroup[team]?.[0] || 'Responsável não informado'),
+                    responsible,
                     progress,
                     start,
                     estEnd,
-                    status
+                    status,
+                    subtasks: []
                 });
                 imported += 1;
             });
 
             recalculateAllGroupProgress();
+            syncTeamMembersFromGroups();
             saveData();
-            renderGroupTabs();
-            renderGroupContent();
-            renderAllTasks();
-            createAllCharts();
-            applyTimelineFilters();
+            renderAll();
 
             if (imported > 0) {
-                showImportFeedback(`Importação concluída com sucesso. ${imported} tarefa(s) adicionada(s)${ignored ? ` e ${ignored} linha(s) ignorada(s)` : ''}.`, 'success');
+                const ignoredParts = [];
+                if (ignored) ignoredParts.push(`${ignored} linha(s) sem equipe/tarefa`);
+                if (invalidResponsible) ignoredParts.push(`${invalidResponsible} linha(s) com responsável não cadastrado na equipe`);
+                showImportFeedback(`Importação concluída com sucesso. ${imported} tarefa(s) adicionada(s)${ignoredParts.length ? ` e ${ignoredParts.join(' + ')} ignorada(s)` : ''}.`, 'success');
             } else {
-                showImportFeedback('Nenhuma linha válida foi importada. Confira as colunas do arquivo modelo.', 'error');
+                showImportFeedback('Nenhuma linha válida foi importada. Verifique se a equipe existe, se há responsáveis cadastrados e se o arquivo segue o modelo.', 'error');
             }
         }
 
@@ -1133,14 +2006,22 @@
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
         function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
 
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !document.getElementById('task-modal').classList.contains('hidden')) {
+                closeTaskModal();
+            }
+        });
+
+        document.getElementById('task-modal')?.addEventListener('click', (event) => {
+            if (event.target.id === 'task-modal') closeTaskModal();
+        });
+
         window.onload = () => {
             loadData();
-            renderGroupTabs();
-            renderGroupContent();
-            renderAllTasks();
+            renderAll();
             setActiveNav('overview');
             filteredTimelineTasks = [];
-            console.log('%c✅ VIGNA.IA - versão completa com filtros, importação, exclusão, exportação Excel e gráficos corrigidos', 'color:#a5b4fc; font-weight:700');
+            console.log('%c✅ VIGNA.IA - versão com drag and drop, subtarefas e autocomplete por equipe', 'color:#a5b4fc; font-weight:700');
         };
     </script>
 </body>
