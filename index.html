@@ -194,6 +194,120 @@
             text-decoration: line-through;
             color: #94a3b8;
         }
+
+        .timeline-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            min-width: 220px;
+            width: 100%;
+            background:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(2, 6, 23, 0.96) 100%);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            color: #f8fafc;
+            border-radius: 18px;
+            padding: 12px 42px 12px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.2;
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+            background-image:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(2, 6, 23, 0.96) 100%),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23cbd5e1' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat, no-repeat;
+            background-position: 0 0, right 12px center;
+        }
+
+        .timeline-select:hover {
+            border-color: rgba(167, 139, 250, 0.35);
+            background:
+                linear-gradient(180deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.96) 100%);
+        }
+
+        .timeline-select:focus {
+            border-color: rgba(139, 92, 246, 0.85);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+        }
+
+        .timeline-task-name {
+            font-weight: 600;
+            color: #f8fafc;
+        }
+
+        .timeline-cell-muted {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .responsible-cell {
+            width: clamp(180px, 22vw, 320px);
+            min-width: 180px;
+            max-width: 320px;
+        }
+
+        .responsible-cell-inner {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .timeline-select,
+        .timeline-date-input,
+        .timeline-status-select {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .timeline-select option {
+            color: #0f172a;
+        }
+
+        @media (max-width: 1280px) {
+            table {
+                min-width: 1160px;
+            }
+
+            .responsible-cell {
+                width: 220px;
+                min-width: 220px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            table {
+                min-width: 1040px;
+            }
+
+            .responsible-cell {
+                width: 180px;
+                min-width: 180px;
+            }
+
+            .timeline-select {
+                min-width: 100%;
+                font-size: 12px;
+                padding: 10px 36px 10px 12px;
+                border-radius: 14px;
+            }
+        }
+
+        .timeline-date-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            color: #e2e8f0;
+            border-radius: 16px;
+            padding: 10px 12px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .timeline-date-input:focus {
+            border-color: rgba(139, 92, 246, 0.85);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+        }
+
     </style>
 </head>
 <body class="min-h-screen text-slate-200">
@@ -605,6 +719,101 @@
 
         let draggedTaskId = null;
 
+        const STORAGE_KEY_DATA = 'vignaIA_data';
+        const STORAGE_KEY_TEAMS = 'vignaIA_teamMembers';
+        const STORAGE_KEY_VERSION = 'vignaIA_storage_version';
+        const CURRENT_STORAGE_VERSION = '5';
+
+        function normalizeMemberName(name) {
+            return String(name || '').trim().replace(/\s+/g, ' ');
+        }
+
+        function sanitizeGroupNames() {
+            const normalizedGroups = [];
+            const seen = new Set();
+
+            groups.forEach((group, index) => {
+                const normalizedName = String(group?.name || '').trim();
+                if (!normalizedName) return;
+                const safeName = seen.has(normalizedName.toLowerCase()) ? `${normalizedName} ${index + 1}` : normalizedName;
+                seen.add(safeName.toLowerCase());
+                normalizedGroups.push({
+                    ...group,
+                    name: safeName,
+                    color: group?.color || groupColors[safeName] || 'sky',
+                    tasks: Array.isArray(group?.tasks) ? group.tasks : []
+                });
+            });
+
+            groups = normalizedGroups;
+        }
+
+        function buildAuthoritativeTeamMembers() {
+            const cleaned = {};
+
+            groups.forEach(group => {
+                const groupName = String(group.name || '').trim();
+                const defaultMembers = Array.isArray(defaultTeamMembersByGroup[groupName])
+                    ? defaultTeamMembersByGroup[groupName]
+                    : [];
+
+                cleaned[groupName] = [...new Set(
+                    defaultMembers
+                        .map(normalizeMemberName)
+                        .filter(Boolean)
+                )];
+            });
+
+            return cleaned;
+        }
+
+        function sanitizeTeamMembers(forceReset = false) {
+            const authoritative = buildAuthoritativeTeamMembers();
+
+            groups.forEach(group => {
+                const groupName = String(group.name || '').trim();
+                const allowedMembers = authoritative[groupName] || [];
+                const allowedSet = new Set(allowedMembers.map(member => member.toLowerCase()));
+
+                group.tasks = Array.isArray(group.tasks) ? group.tasks : [];
+                group.tasks.forEach(task => {
+                    const normalizedResponsible = normalizeMemberName(task?.responsible);
+                    if (!normalizedResponsible) {
+                        task.responsible = 'Responsável não informado';
+                        return;
+                    }
+
+                    if (!allowedSet.has(normalizedResponsible.toLowerCase())) {
+                        task.responsible = 'Responsável não informado';
+                    } else {
+                        task.responsible = allowedMembers.find(member => member.toLowerCase() === normalizedResponsible.toLowerCase()) || normalizedResponsible;
+                    }
+                });
+            });
+
+            teamMembersByGroup = authoritative;
+
+            if (forceReset) {
+                localStorage.setItem(STORAGE_KEY_TEAMS, JSON.stringify(teamMembersByGroup));
+            }
+        }
+
+        function migrateStoredDataIfNeeded() {
+            const savedVersion = localStorage.getItem(STORAGE_KEY_VERSION);
+            const shouldForceReset = savedVersion !== CURRENT_STORAGE_VERSION;
+
+            if (!shouldForceReset) return;
+
+            groups = defaultGroups();
+            teamMembersByGroup = buildAuthoritativeTeamMembers();
+            filteredTimelineTasks = [];
+            currentPage = 1;
+
+            localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(groups));
+            localStorage.setItem(STORAGE_KEY_TEAMS, JSON.stringify(teamMembersByGroup));
+            localStorage.setItem(STORAGE_KEY_VERSION, CURRENT_STORAGE_VERSION);
+        }
+
         function makeId(prefix = 'id') {
             return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         }
@@ -638,12 +847,14 @@
         }
 
         function getTeamMembersForName(teamName) {
-            if (!teamName) return [];
-            const exact = teamMembersByGroup[teamName];
-            if (exact?.length) return exact;
-            const normalized = teamName.trim().toLowerCase();
-            const matchedKey = Object.keys(teamMembersByGroup).find(key => key.toLowerCase() === normalized || key.toLowerCase().includes(normalized) || normalized.includes(key.toLowerCase()));
-            return matchedKey ? (teamMembersByGroup[matchedKey] || []) : [];
+            const normalized = String(teamName || '').trim();
+            if (!normalized) return [];
+
+            const exactKey = Object.keys(teamMembersByGroup).find(
+                key => String(key || '').trim().toLowerCase() === normalized.toLowerCase()
+            );
+
+            return exactKey ? [...(teamMembersByGroup[exactKey] || [])] : [];
         }
 
         function updateResponsibleSuggestions(context = 'new') {
@@ -801,36 +1012,22 @@
 
         function defaultGroups() {
             return [
-                { id: 0, name: "Desenvolvimento VAA", color: "indigo", progress: 78, tasks: [
-                    { name: "Escopo Técnico", progress: 100, responsible: "João Santos", start: "2026-01-05", estEnd: "2026-01-15", status: "concluído" },
-                    { name: "Mapeamento de requisitos", progress: 85, responsible: "João Santos", start: "2026-01-16", estEnd: "2026-02-10", status: "Concluído" },
-                    { name: "Criação de Tipagem de Arquivos", progress: 65, responsible: "Caio Mucci", start: "2026-02-05", estEnd: "2026-03-20", status: "em dia" },
-                    { name: "Validação de regras de negócio", progress: 40, responsible: "João Santos", start: "2026-03-01", estEnd: "2026-04-10", status: "em dia" },
-                    { name: "Atualização de interface do Legal Control", progress: 40, responsible: "Ricardo Santana", start: "2026-03-01", estEnd: "2026-04-10", status: "em dia" }
-                ]},
-                { id: 1, name: "TI VAA", color: "amber", progress: 73, tasks: [
-                    { name: "Provisionamento do servidor", progress: 100, responsible: "Danilo", start: "2026-01-08", estEnd: "2026-01-18", status: "concluído" },
-                    { name: "Monitoramento do ambiente", progress: 55, responsible: "Danilo", start: "2026-02-16", estEnd: "2026-03-30", status: "em dia" }
-                ]},
-                { id: 2, name: "Operacional VAA", color: "violet", progress: 25, tasks: [
-                    { name: "Criação de teses modelo", progress: 35, responsible: "Flávia Bezzi", start: "2026-03-03", estEnd: "2026-04-12", status: "em dia" },
-                    { name: "Criação de pastas na rede", progress: 20, responsible: "Flávia Bezzi", start: "2026-03-10", estEnd: "2026-04-20", status: "em dia" }
-                ]},
-                { id: 3, name: "Prestador de Serviços", color: "emerald", progress: 5, tasks: [
-                    { name: "Criação de sistema de busca no banco de dados", progress: 10, responsible: "André Freitas", start: "2026-03-15", estEnd: "2026-03-25", status: "em dia" },
-                    { name: "Criação de sistema de confecção de teses", progress: 10, responsible: "André Freitas", start: "2026-03-15", estEnd: "2026-03-25", status: "em dia" },
-                    { name: "Mapeamento banco", progress: 0, responsible: "André Freitas", start: "2026-03-20", estEnd: "2026-04-05", status: "em dia" }
-                ]}
+                { id: 0, name: "Desenvolvimento VAA", color: "indigo", progress: 0, tasks: [] },
+                { id: 1, name: "TI VAA", color: "amber", progress: 0, tasks: [] },
+                { id: 2, name: "Operacional VAA", color: "violet", progress: 0, tasks: [] },
+                { id: 3, name: "Prestador de Serviços", color: "emerald", progress: 0, tasks: [] }
             ];
         }
 
         function loadData() {
-            const saved = localStorage.getItem('vignaIA_data');
-            const savedTeams = localStorage.getItem('vignaIA_teamMembers');
+            migrateStoredDataIfNeeded();
+            const saved = localStorage.getItem(STORAGE_KEY_DATA);
+            const savedTeams = localStorage.getItem(STORAGE_KEY_TEAMS);
             groups = saved ? JSON.parse(saved) : defaultGroups();
             teamMembersByGroup = savedTeams ? JSON.parse(savedTeams) : JSON.parse(JSON.stringify(defaultTeamMembersByGroup));
+            sanitizeGroupNames();
             ensureTaskStructure();
-            syncTeamMembersFromGroups();
+            sanitizeTeamMembers();
             recalculateAllGroupProgress();
             refreshTeamOptions();
             updateResponsibleSuggestions('new');
@@ -839,16 +1036,14 @@
         }
 
         function saveData() {
-            localStorage.setItem('vignaIA_data', JSON.stringify(groups));
-            localStorage.setItem('vignaIA_teamMembers', JSON.stringify(teamMembersByGroup));
+            sanitizeTeamMembers();
+            localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(groups));
+            localStorage.setItem(STORAGE_KEY_TEAMS, JSON.stringify(teamMembersByGroup));
+            localStorage.setItem(STORAGE_KEY_VERSION, CURRENT_STORAGE_VERSION);
         }
 
         function syncTeamMembersFromGroups() {
-            const nextTeamMembers = {};
-            groups.forEach(group => {
-                nextTeamMembers[group.name] = [...new Set((teamMembersByGroup[group.name] || []).map(member => String(member || '').trim()).filter(Boolean))];
-            });
-            teamMembersByGroup = nextTeamMembers;
+            sanitizeTeamMembers();
         }
 
         function refreshTeamOptions() {
@@ -1040,8 +1235,53 @@
         }
 
         function getValidatedResponsible(teamName, responsible) {
-            const allowedMembers = teamMembersByGroup[teamName] || [];
-            return allowedMembers.includes(responsible) ? responsible : '';
+            const allowedMembers = getTeamMembersForName(teamName);
+            const normalized = normalizeMemberName(responsible);
+            if (!normalized) return '';
+            return allowedMembers.find(member => member.toLowerCase() === normalized.toLowerCase()) || '';
+        }
+
+        function normalizeHeaderKey(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[̀-ͯ]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '');
+        }
+
+        function getRowValue(row, aliases = []) {
+            const normalizedAliases = aliases.map(normalizeHeaderKey);
+            const keys = Object.keys(row || {});
+            for (const key of keys) {
+                const normalizedKey = normalizeHeaderKey(key);
+                if (normalizedAliases.includes(normalizedKey)) {
+                    return row[key];
+                }
+            }
+            return '';
+        }
+
+        function ensureTeamMember(teamName, memberName) {
+            const normalizedTeam = String(teamName || '').trim();
+            const normalizedMember = normalizeMemberName(memberName);
+
+            if (!normalizedTeam || !normalizedMember || normalizedMember === 'Responsável não informado' || normalizedMember === 'Não definido') {
+                return '';
+            }
+
+            if (!teamMembersByGroup[normalizedTeam]) {
+                teamMembersByGroup[normalizedTeam] = [];
+            }
+
+            const existing = teamMembersByGroup[normalizedTeam].find(
+                member => normalizeMemberName(member).toLowerCase() === normalizedMember.toLowerCase()
+            );
+
+            if (existing) return existing;
+
+            teamMembersByGroup[normalizedTeam].push(normalizedMember);
+            teamMembersByGroup[normalizedTeam].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            return normalizedMember;
         }
 
         function showImportFeedback(message, type = 'success') {
@@ -1397,7 +1637,7 @@
 
             let html = '';
             paginatedTasks.forEach((task) => {
-                const availableMembers = teamMembersByGroup[task.groupName] || [];
+                const availableMembers = getTeamMembersForName(task.groupName);
                 const responsibleAllowed = availableMembers.includes(task.responsible);
                 const doneCount = (task.subtasks || []).filter(subtask => subtask.done).length;
                 const totalSubtasks = (task.subtasks || []).length;
@@ -1420,28 +1660,28 @@
                                 type="text"
                                 value="${escapeHtml(task.name)}"
                                 onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'name', this.value)"
-                                class="inline-edit-input"
+                                class="inline-edit-input timeline-task-name"
                                 placeholder="Nome da tarefa"
                             >
-                            <div class="text-xs text-slate-400 mt-2">Subtarefas: ${doneCount}/${totalSubtasks}</div>
+                            <div class="timeline-cell-muted mt-2">Subtarefas: ${doneCount}/${totalSubtasks}</div>
                         </td>
-                        <td class="px-6 py-6">
-                            <div class="inline-block">
-                                <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'responsible', this.value)" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-violet-500 outline-none select-full-name">
+                        <td class="px-4 py-6 responsible-cell align-top">
+                            <div class="relative responsible-cell-inner">
+                                <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'responsible', this.value)" class="timeline-select" title="${escapeHtml(task.responsible || 'Selecione um responsável')}">
                                     ${!responsibleAllowed ? `<option value="" selected>Selecione um responsável</option>` : ''}
                                     ${availableMembers.map(member => `<option value="${escapeHtml(member)}" ${task.responsible === member ? 'selected' : ''}>${escapeHtml(member)}</option>`).join('')}
                                 </select>
-                                ${!responsibleAllowed && task.responsible ? `<div class="text-xs text-amber-300 mt-2">Atual: ${escapeHtml(task.responsible)} (não cadastrado na equipe)</div>` : ''}
+                                ${!responsibleAllowed && task.responsible ? `<div class="timeline-cell-muted mt-2 break-words">Atual: ${escapeHtml(task.responsible)} (não cadastrado na equipe)</div>` : ''}
                             </div>
                         </td>
                         <td class="px-6 py-6">
-                            <input type="date" value="${task.start || ''}" onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'start', this.value)" class="bg-transparent border-none text-sm outline-none w-full">
+                            <input type="date" value="${task.start || ''}" onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'start', this.value)" class="timeline-date-input">
                         </td>
                         <td class="px-6 py-6">
                             <input type="date" value="${task.estEnd || ''}" onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'estEnd', this.value)" class="bg-transparent border-none text-sm font-bold outline-none w-full">
                         </td>
                         <td class="px-6 py-6 text-center">
-                            <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'status', this.value)" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-xs">
+                            <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'status', this.value)" class="timeline-status-select bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-xs">
                                 <option value="concluído" ${task.status === 'concluído' ? 'selected' : ''}>Concluído</option>
                                 <option value="em dia" ${task.status === 'em dia' ? 'selected' : ''}>Em dia</option>
                                 <option value="atrasado" ${task.status === 'atrasado' ? 'selected' : ''}>Atrasado</option>
@@ -1472,7 +1712,7 @@
             });
 
             if (!html) {
-                html = `<tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">Nenhuma tarefa encontrada com os filtros aplicados.</td></tr>`;
+                html = `<tr><td colspan="9" class="px-6 py-10 text-center text-slate-400">Nenhuma tarefa encontrada com os filtros aplicados.</td></tr>`;
             }
 
             document.getElementById('timeline-body').innerHTML = html;
@@ -1914,27 +2154,43 @@
 
             let imported = 0;
             let ignored = 0;
-            let invalidResponsible = 0;
+            let createdTeams = 0;
+            let createdMembers = 0;
 
-            rows.forEach(row => {
-                const team = String(row['Equipe'] || row['equipe'] || '').trim();
-                const taskName = String(row['Tarefa'] || row['tarefa'] || row['Tarefa / Entrega'] || '').trim();
-                const responsible = String(row['Responsável'] || row['Responsavel'] || row['responsavel'] || '').trim();
-                const progress = parseProgress(row['Progresso'] || row['% Concluído'] || row['% Concluido'] || 0);
-                const status = normalizeStatus(row['Status'] || 'em dia');
-                const start = normalizeDate(row['Data Inicio'] || row['Data Início'] || row['Inicio'] || row['Início'] || row['Início da tarefa'] || '');
-                const estEnd = normalizeDate(row['Data Estimada'] || row['Estimativa'] || row['Data Final'] || '');
+            rows.forEach(rawRow => {
+                const row = rawRow || {};
+
+                const team = String(getRowValue(row, ['Equipe', 'Time', 'Grupo']) || '').trim();
+                const taskName = String(getRowValue(row, ['Tarefa', 'Tarefa / Entrega', 'Entrega', 'Atividade']) || '').trim();
+                const responsibleRaw = String(getRowValue(row, ['Responsável', 'Responsavel', 'Colaborador', 'Owner', 'Pessoa']) || '').trim();
+
+                const progress = parseProgress(getRowValue(row, ['Progresso', '% Concluído', '% Concluido', 'Percentual', '%']) || 0);
+                const status = normalizeStatus(getRowValue(row, ['Status', 'Situação', 'Situacao']) || 'em dia');
+                const start = normalizeDate(getRowValue(row, ['Data Inicio', 'Data Início', 'Inicio', 'Início', 'Data Inicial', 'Start']) || '');
+                const estEnd = normalizeDate(getRowValue(row, ['Data Estimada', 'Estimativa', 'Data Final', 'Previsão', 'Previsao', 'Fim', 'End']) || '');
 
                 if (!team || !taskName) {
                     ignored += 1;
                     return;
                 }
 
+                const teamAlreadyExists = Boolean(findGroupByName(team) || groups.find(item => item.name.toLowerCase() === team.toLowerCase()));
                 const group = ensureTeamExists(team);
-                const validation = validateResponsibleSelection(group.name, responsible);
-                if (!validation.valid) {
-                    invalidResponsible += 1;
-                    return;
+                if (!teamAlreadyExists) {
+                    createdTeams += 1;
+                }
+
+                let responsible = 'Responsável não informado';
+                if (responsibleRaw) {
+                    const membersBefore = getTeamMembersForName(group.name);
+                    const ensuredMember = ensureTeamMember(group.name, responsibleRaw);
+                    const membersAfter = getTeamMembersForName(group.name);
+                    if (ensuredMember) {
+                        responsible = ensuredMember;
+                        if (membersAfter.length > membersBefore.length) {
+                            createdMembers += 1;
+                        }
+                    }
                 }
 
                 group.tasks.push({
@@ -1951,21 +2207,26 @@
             });
 
             recalculateAllGroupProgress();
-            syncTeamMembersFromGroups();
             saveData();
             renderAll();
 
             if (imported > 0) {
-                const ignoredParts = [];
-                if (ignored) ignoredParts.push(`${ignored} linha(s) sem equipe/tarefa`);
-                if (invalidResponsible) ignoredParts.push(`${invalidResponsible} linha(s) com responsável não cadastrado na equipe`);
-                showImportFeedback(`Importação concluída com sucesso. ${imported} tarefa(s) adicionada(s)${ignoredParts.length ? ` e ${ignoredParts.join(' + ')} ignorada(s)` : ''}.`, 'success');
+                const complements = [];
+                if (ignored) complements.push(`${ignored} linha(s) ignorada(s) por falta de equipe ou tarefa`);
+                if (createdTeams) complements.push(`${createdTeams} equipe(s) criada(s)`);
+                if (createdMembers) complements.push(`${createdMembers} responsável(is) cadastrado(s) automaticamente`);
+
+                showImportFeedback(
+                    `Importação concluída com sucesso. ${imported} tarefa(s) adicionada(s)${complements.length ? `. ${complements.join(' • ')}` : ''}.`,
+                    'success'
+                );
             } else {
-                showImportFeedback('Nenhuma linha válida foi importada. Verifique se a equipe existe, se há responsáveis cadastrados e se o arquivo segue o modelo.', 'error');
+                showImportFeedback('Nenhuma linha válida foi importada. Verifique se a planilha possui ao menos as colunas Equipe e Tarefa.', 'error');
             }
         }
 
         function exportToPDF() {
+
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const allTasks = getFlattenedTasks();
