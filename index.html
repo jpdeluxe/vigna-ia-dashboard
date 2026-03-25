@@ -3,27 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard • VIGNA.IA</title>
+    <title>VIGNA.IA - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
+
         body {
-            font-family: 'Inter', system_ui, sans-serif;
+            font-family: 'Inter', system-ui, sans-serif;
             background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
         }
 
-        .sidebar {
-            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-        }
-        @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.open { transform: translateX(0); }
-        }
+        .sidebar { transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); }
+        @media (max-width: 1024px) { .sidebar { transform: translateX(-100%); } }
+        .sidebar.open { transform: translateX(0); }
 
         .tab-active {
             border-bottom: 4px solid #a5b4fc;
@@ -48,14 +45,6 @@
             border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
-        .task-row {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .task-row:hover {
-            transform: translateX(8px);
-            background: rgba(255, 255, 255, 0.09);
-        }
-
         .progress-bar {
             height: 10px;
             background: rgba(255,255,255,0.1);
@@ -66,27 +55,93 @@
         .progress-fill {
             height: 100%;
             transition: width 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-            animation: progressLoad 1.8s ease-in-out forwards;
-        }
-
-        @keyframes progressLoad {
-            0% { width: 0%; }
-            100% { width: var(--progress-width); }
         }
 
         .status-badge {
             font-size: 0.75rem;
-            padding: 2px 12px;
+            padding: 4px 14px;
             border-radius: 9999px;
             font-weight: 600;
+        }
+
+        .select-full-name {
+            min-width: 180px;
+            white-space: nowrap;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            min-width: 1220px;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .filter-input,
+        .filter-select {
+            width: 100%;
+            min-width: 120px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            color: #e2e8f0;
+            border-radius: 14px;
+            padding: 10px 12px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .filter-input:focus,
+        .filter-select:focus {
+            border-color: rgba(139, 92, 246, 0.8);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+        }
+
+        .inline-edit-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            color: #e2e8f0;
+            border-radius: 16px;
+            padding: 10px 12px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .inline-edit-input:focus {
+            border-color: rgba(139, 92, 246, 0.85);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+        }
+
+        .danger-btn {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fecaca;
+        }
+
+        .danger-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .chart-card {
+            min-height: 400px;
+        }
+
+        .chart-subtitle {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
 <body class="min-h-screen text-slate-200">
-
     <div class="flex h-screen overflow-hidden">
-
-        <!-- SIDEBAR -->
         <div id="sidebar" class="sidebar w-72 bg-slate-950 border-r border-slate-800 flex flex-col fixed lg:relative h-full z-50">
             <div class="px-8 py-8 border-b border-slate-800 flex items-center gap-4">
                 <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-3xl flex items-center justify-center text-white text-3xl shadow-lg">🤖</div>
@@ -97,16 +152,19 @@
             </div>
 
             <nav class="flex-1 px-6 py-10 space-y-2">
-                <a onclick="navigateToSection('overview'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl bg-white/10 text-white font-semibold">
+                <a onclick="navigateToSection('overview'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl bg-white/10 text-white font-semibold cursor-pointer nav-link" data-section="overview">
                     <i class="fa-solid fa-house w-5"></i><span>Visão Geral</span>
                 </a>
-                <a onclick="navigateToSection('charts'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all">
+                <a onclick="navigateToSection('import'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all cursor-pointer nav-link" data-section="import">
+                    <i class="fa-solid fa-upload w-5"></i><span>Importador em Lote</span>
+                </a>
+                <a onclick="navigateToSection('charts'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all cursor-pointer nav-link" data-section="charts">
                     <i class="fa-solid fa-chart-simple w-5"></i><span>Gráficos</span>
                 </a>
-                <a onclick="navigateToSection('timeline'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all">
+                <a onclick="navigateToSection('timeline'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all cursor-pointer nav-link" data-section="timeline">
                     <i class="fa-solid fa-timeline w-5"></i><span>Cronograma Geral</span>
                 </a>
-                <a onclick="navigateToSection('tasks'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all">
+                <a onclick="navigateToSection('tasks'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all cursor-pointer nav-link" data-section="tasks">
                     <i class="fa-solid fa-list-check w-5"></i><span>Tarefas Detalhadas</span>
                 </a>
             </nav>
@@ -122,239 +180,574 @@
             </div>
         </div>
 
-        <!-- CONTEÚDO PRINCIPAL -->
         <div class="flex-1 flex flex-col">
-
             <div class="h-16 bg-slate-950 border-b border-slate-800 px-6 lg:px-10 flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <button onclick="toggleSidebar()" class="lg:hidden text-3xl p-2 text-slate-300"><i class="fa-solid fa-bars"></i></button>
+                    <button onclick="toggleSidebar()" class="lg:hidden text-3xl p-2"><i class="fa-solid fa-bars"></i></button>
                     <h2 class="text-2xl font-semibold tracking-tight">VIGNA.IA</h2>
                 </div>
-                <div class="flex items-center gap-6">
-                    <div class="flex items-center gap-3 bg-emerald-900/30 text-emerald-300 px-6 py-2 rounded-3xl text-sm font-medium">
-                        <div class="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-                        EM ANDAMENTO
-                    </div>
-                    <button onclick="exportToPDF()" class="flex items-center gap-3 bg-violet-600 hover:bg-violet-500 transition-colors px-8 h-11 rounded-3xl font-semibold shadow-lg shadow-violet-500/30">
-                        <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Exportar PDF</span>
-                    </button>
-                </div>
+                <button onclick="exportToPDF()" class="flex items-center gap-3 bg-violet-600 hover:bg-violet-500 px-8 h-11 rounded-3xl font-semibold">
+                    <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Exportar PDF</span>
+                </button>
             </div>
 
             <div class="flex-1 overflow-auto p-6 lg:p-10" id="main-content">
-
-                <!-- VISÃO GERAL -->
                 <div id="overview">
-                    <div class="mb-10">
-                        <h1 class="text-4xl font-bold tracking-tighter">Visão Geral do Projeto</h1>
-                        <p class="text-slate-400 mt-2">Atualizado em 25 de Março de 2025 • Meta: 30 Junho de 2026</p>
-                    </div>
+                    <h1 class="text-4xl font-bold tracking-tighter mb-2">Visão Geral do Projeto</h1>
+                    <p class="text-slate-400 mb-10">Atualizado em 25 de Março de 2026 • Meta: 30 de Junho de 2026</p>
+
                     <div class="border-b border-slate-700 mb-10">
-                        <div class="flex gap-10 text-base overflow-x-auto pb-4" id="group-tabs">
-                            <button onclick="switchGroup(0)" class="tab-active px-2 pb-4" data-index="0">Equipe Dev Vigna</button>
-                            <button onclick="switchGroup(1)" class="px-2 pb-4 text-slate-400 hover:text-slate-200" data-index="1">Equipe TI Vigna</button>
-                            <button onclick="switchGroup(2)" class="px-2 pb-4 text-slate-400 hover:text-slate-200" data-index="2">Diretoria Vigna</button>
-                            <button onclick="switchGroup(3)" class="px-2 pb-4 text-slate-400 hover:text-slate-200" data-index="3">Equipe André Freitas</button>
-                        </div>
+                        <div class="flex gap-10 overflow-x-auto pb-4" id="group-tabs"></div>
                     </div>
                     <div id="group-content" class="space-y-12"></div>
                 </div>
 
-                <!-- GRÁFICOS COM FILTROS -->
-                <div id="charts" class="hidden">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
-                        <h1 class="text-4xl font-bold tracking-tighter">Gráficos do Projeto</h1>
-                        
-                        <!-- Filtros -->
-                        <div class="flex flex-wrap gap-2 bg-slate-900 border border-slate-700 rounded-3xl p-1">
-                            <button onclick="filterCharts(this, 'all')" class="filter-btn active px-6 py-2 text-sm font-medium rounded-3xl">Todo o projeto</button>
-                            <button onclick="filterCharts(this, '30d')" class="filter-btn px-6 py-2 text-sm font-medium rounded-3xl">Últimos 30 dias</button>
-                            <button onclick="filterCharts(this, 'this-month')" class="filter-btn px-6 py-2 text-sm font-medium rounded-3xl">Este mês</button>
-                            <button onclick="filterCharts(this, '90d')" class="filter-btn px-6 py-2 text-sm font-medium rounded-3xl">Últimos 90 dias</button>
-                        </div>
-                    </div>
+                <div id="import" class="hidden">
+                    <h1 class="text-4xl font-bold tracking-tighter mb-8">Importador em Lote</h1>
+                    <div class="glass-card rounded-3xl p-12 max-w-3xl mx-auto text-center">
+                        <i class="fa-solid fa-cloud-arrow-up text-7xl text-violet-400 mb-8"></i>
+                        <h3 class="text-2xl font-semibold mb-4">Importar tarefas em lote</h3>
+                        <p class="text-slate-400 mb-8">Envie um arquivo <strong>.xlsx</strong>, <strong>.xls</strong> ou <strong>.csv</strong> com as colunas padrão abaixo.</p>
 
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+                            <button onclick="document.getElementById('fileInput').click()" class="bg-violet-600 hover:bg-violet-500 px-8 py-4 rounded-3xl text-lg font-semibold w-full sm:w-auto">
+                                Selecionar arquivo
+                            </button>
+                            <button onclick="downloadImportTemplate()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-4 rounded-3xl text-lg font-semibold w-full sm:w-auto">
+                                <i class="fa-solid fa-file-excel mr-2"></i>Baixar modelo Excel
+                            </button>
+                        </div>
+
+                        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportFile(event)">
+
+                        <div class="text-left bg-slate-950/50 border border-slate-700 rounded-3xl p-6 max-w-2xl mx-auto">
+                            <p class="font-semibold mb-3 text-slate-100">Colunas obrigatórias:</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-300">
+                                <div>• Equipe</div>
+                                <div>• Tarefa</div>
+                                <div>• Responsável</div>
+                                <div>• Progresso</div>
+                                <div>• Status</div>
+                                <div>• Data Inicio</div>
+                                <div>• Data Estimada</div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-5">Status aceitos: concluído, em dia, atrasado.</p>
+                        </div>
+
+                        <div id="import-feedback" class="hidden mt-8 text-sm rounded-2xl px-5 py-4 border"></div>
+                    </div>
+                </div>
+
+                <div id="charts" class="hidden">
+                    <h1 class="text-4xl font-bold tracking-tighter mb-8">Gráficos do Projeto</h1>
+                    <div class="flex flex-wrap gap-3 mb-8 bg-slate-900 border border-slate-700 rounded-3xl p-2 w-fit">
+                        <button onclick="applyFilter(this, 'all')" class="filter-btn bg-violet-600 text-white px-6 py-2.5 rounded-3xl text-sm font-medium">Todo o projeto</button>
+                        <button onclick="applyFilter(this, '30d')" class="filter-btn px-6 py-2.5 rounded-3xl text-sm font-medium">Últimos 30 dias</button>
+                        <button onclick="applyFilter(this, 'this-month')" class="filter-btn px-6 py-2.5 rounded-3xl text-sm font-medium">Este mês</button>
+                    </div>
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                        <div class="glass-card rounded-3xl p-8">
-                            <h3 class="font-semibold text-lg mb-6">Evolução Geral</h3>
+                        <div class="glass-card rounded-3xl p-8 chart-card">
+                            <h3 class="font-semibold">Evolução Geral</h3>
+                            <p id="line-chart-subtitle" class="chart-subtitle">Progresso médio acumulado com base nas tarefas filtradas.</p>
                             <canvas id="overallLineChart" class="h-80"></canvas>
                         </div>
-                        <div class="glass-card rounded-3xl p-8">
-                            <h3 class="font-semibold text-lg mb-6">Progresso por Equipe</h3>
+                        <div class="glass-card rounded-3xl p-8 chart-card">
+                            <h3 class="font-semibold">Progresso por Equipe</h3>
+                            <p class="chart-subtitle">Média de avanço por equipe considerando o período selecionado.</p>
                             <canvas id="teamBarChart" class="h-80"></canvas>
                         </div>
-                        <div class="glass-card rounded-3xl p-8 xl:col-span-2">
-                            <h3 class="font-semibold text-lg mb-6">Distribuição de Status</h3>
-                            <canvas id="statusPieChart" class="h-80 mx-auto max-w-md"></canvas>
+                        <div class="glass-card rounded-3xl p-8 xl:col-span-2 chart-card">
+                            <h3 class="font-semibold">Distribuição de Status</h3>
+                            <p class="chart-subtitle">Quantidade de tarefas concluídas, em dia e atrasadas.</p>
+                            <canvas id="statusPieChart" class="h-80 max-w-md mx-auto"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- CRONOGRAMA -->
                 <div id="timeline" class="hidden">
-                    <h1 class="text-4xl font-bold tracking-tighter mb-8">Cronograma Geral</h1>
-                    <div class="glass-card rounded-3xl overflow-hidden">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="border-b border-slate-700 text-slate-400 text-sm">
-                                    <th class="text-left py-6 px-8 font-medium">Equipe</th>
-                                    <th class="text-left py-6 px-8 font-medium">Entrega</th>
-                                    <th class="text-left py-6 px-8 font-medium">Início</th>
-                                    <th class="text-left py-6 px-8 font-medium">Estimativa</th>
-                                    <th class="text-center py-6 px-8 font-medium">Status</th>
-                                    <th class="text-center py-6 px-8 font-medium">% Concluído</th>
-                                </tr>
-                            </thead>
-                            <tbody id="timeline-body" class="divide-y divide-slate-700"></tbody>
-                        </table>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <h1 class="text-4xl font-bold tracking-tighter">Cronograma Geral</h1>
+
+                        <div class="flex items-center gap-4 flex-wrap">
+                            <button onclick="resetTimelineFilters()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-5 py-3 rounded-3xl font-semibold text-sm">
+                                <i class="fa-solid fa-filter-circle-xmark"></i>Limpar filtros
+                            </button>
+                            <button onclick="exportTimelineToExcel()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-5 py-3 rounded-3xl font-semibold text-sm">
+                                <i class="fa-solid fa-file-excel"></i>Exportar Excel
+                            </button>
+                            <div id="pagination-controls" class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-700"></div>
+                            <button onclick="saveTimeline()" class="flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 px-8 py-3 rounded-3xl font-semibold text-sm shadow-lg whitespace-nowrap">
+                                <i class="fa-solid fa-floppy-disk"></i>Salvar Alterações
+                            </button>
+                        </div>
                     </div>
+
+                    <div class="glass-card rounded-3xl overflow-hidden">
+                        <div class="table-container">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b border-slate-700 bg-slate-900/70 text-slate-300 text-sm">
+                                        <th class="text-left py-6 px-6 font-medium">Equipe</th>
+                                        <th class="text-left py-6 px-6 font-medium">Tarefa / Entrega</th>
+                                        <th class="text-left py-6 px-6 font-medium">Responsável</th>
+                                        <th class="text-left py-6 px-6 font-medium">Início</th>
+                                        <th class="text-left py-6 px-6 font-medium">Estimativa</th>
+                                        <th class="text-center py-6 px-6 font-medium">Status</th>
+                                        <th class="text-center py-6 px-6 font-medium">% Concluído</th>
+                                        <th class="text-center py-6 px-6 font-medium">Ações</th>
+                                    </tr>
+                                    <tr class="border-b border-slate-700 bg-slate-950/60 text-slate-300 text-xs">
+                                        <th class="px-4 py-4"><input id="filter-team" class="filter-input" placeholder="Filtrar equipe" oninput="applyTimelineFilters()"></th>
+                                        <th class="px-4 py-4"><input id="filter-task" class="filter-input" placeholder="Filtrar tarefa" oninput="applyTimelineFilters()"></th>
+                                        <th class="px-4 py-4"><input id="filter-responsible" class="filter-input" placeholder="Filtrar responsável" oninput="applyTimelineFilters()"></th>
+                                        <th class="px-4 py-4"><input id="filter-start" type="date" class="filter-input" onchange="applyTimelineFilters()"></th>
+                                        <th class="px-4 py-4"><input id="filter-estEnd" type="date" class="filter-input" onchange="applyTimelineFilters()"></th>
+                                        <th class="px-4 py-4">
+                                            <select id="filter-status" class="filter-select" onchange="applyTimelineFilters()">
+                                                <option value="">Todos</option>
+                                                <option value="concluído">Concluído</option>
+                                                <option value="em dia">Em dia</option>
+                                                <option value="atrasado">Atrasado</option>
+                                            </select>
+                                        </th>
+                                        <th class="px-4 py-4"><input id="filter-progress" type="number" min="0" max="100" class="filter-input" placeholder="Ex.: 100" oninput="applyTimelineFilters()"></th>
+                                        <th class="px-4 py-4"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="timeline-body" class="divide-y divide-slate-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <p id="timeline-summary" class="text-sm text-slate-400 mt-4"></p>
                 </div>
 
-                <!-- TAREFAS -->
                 <div id="tasks" class="hidden">
                     <h2 class="text-3xl font-bold mb-8">Todas as Tarefas</h2>
                     <div id="all-tasks" class="space-y-12"></div>
                 </div>
-
             </div>
         </div>
     </div>
 
     <script>
-        // ==================== DADOS REAIS COM STATUS ====================
-        const groups = [
-            { id: 0, name: "Equipe de Desenvolvimento Vigna Advogados", color: "indigo", progress: 78, tasks: [
-                { name: "Escopo técnico do projeto", progress: 100, start: "2025-02-10", estEnd: "2025-02-28", status: "concluído" },
-                { name: "Criação de usuário no banco de dados VAA", progress: 100, start: "2025-02-10", estEnd: "2025-02-28", status: "concluído" },
-                { name: "Sistema de tipagem de arquivos no LC", progress: 10, start: "2025-03-01", estEnd: "2025-04-15", status: "em dia" },
-                { name: "Ajuste no frontend de acordo com escopo", progress: 0, start: "2025-03-10", estEnd: "2025-04-20", status: "atrasado" }
-            ]},
-            { id: 1, name: "Equipe de TI Vigna Advogados", color: "amber", progress: 73, tasks: [
-                { name: "Cotação de servidor Linux", progress: 100, start: "2025-02-15", estEnd: "2025-02-28", status: "concluído" },
-                { name: "Criação de usuário na rede e VPN", progress: 100, start: "2025-02-20", estEnd: "2025-03-05", status: "concluído" },
-                { name: "Validação e assertividade do servidor", progress: 20, start: "2025-03-10", estEnd: "2025-04-10", status: "em dia" }
-            ]},
-            { id: 2, name: "Diretoria Vigna Advogados", color: "violet", progress: 25, tasks: [
-                { name: "Separação de teses para IA", progress: 20, start: "2025-02-25", estEnd: "2025-04-30", status: "em dia" },
-                { name: "Criação de pastas na rede VAA", progress: 10, start: "2025-03-01", estEnd: "2025-03-20", status: "atrasado" },
-                { name: "Acompanhamento do banco de teses", progress: 45, start: "2025-03-01", estEnd: "2025-05-15", status: "em dia" }
-            ]},
-            { id: 3, name: "Equipe de Desenvolvimento - André Freitas", color: "emerald", progress: 5, tasks: [
-                { name: "Mapeamento de dados no banco VAA", progress: 15, start: "2025-03-05", estEnd: "2025-04-15", status: "em dia" },
-                { name: "Análise de peças enviadas", progress: 0, start: "2025-03-15", estEnd: "2025-04-30", status: "atrasado" },
-                { name: "Criação de versão inicial para testes", progress: 0, start: "2025-04-01", estEnd: "2025-05-10", status: "em dia" }
-            ]}
-        ];
+        const teamMembersByGroup = {
+            "Desenvolvimento VAA": ["Ana Silva", "Carlos Mendes", "João Santos", "Mariana Costa"],
+            "TI VAA": ["Pedro Lima", "Laura Ferreira"],
+            "Operacional VAA": ["Dr. Rafael Vigna", "Equipe Operacional"],
+            "Prestador de Serviços": ["André Freitas", "Beatriz Oliveira", "Lucas Almeida", "Fernanda Costa"]
+        };
 
+        const groupColors = {
+            "Desenvolvimento VAA": "indigo",
+            "TI VAA": "amber",
+            "Operacional VAA": "violet",
+            "Prestador de Serviços": "emerald"
+        };
+
+        let groups = [];
+        let currentPage = 1;
+        const rowsPerPage = 10;
+        let filteredTimelineTasks = [];
         let currentGroupIndex = 0;
-        let currentCharts = null;
+        let charts = { line: null, bar: null, pie: null };
+        let activeChartPeriod = 'all';
 
-        // ==================== STATUS HELPER ====================
-        function getStatusBadge(status) {
-            if (status === "concluído") return `<span class="status-badge bg-emerald-400/20 text-emerald-400">Concluído</span>`;
-            if (status === "em dia") return `<span class="status-badge bg-sky-400/20 text-sky-400">Em dia</span>`;
-            return `<span class="status-badge bg-red-400/20 text-red-400">Atrasado</span>`;
+        function defaultGroups() {
+            return [
+                { id: 0, name: "Desenvolvimento VAA", color: "indigo", progress: 78, tasks: [
+                    { name: "Mapeamento de requisitos", progress: 100, responsible: "Ana Silva", start: "2026-01-05", estEnd: "2026-01-15", status: "concluído" },
+                    { name: "Protótipo da interface", progress: 85, responsible: "Carlos Mendes", start: "2026-01-16", estEnd: "2026-02-10", status: "em dia" },
+                    { name: "Integração com APIs", progress: 65, responsible: "João Santos", start: "2026-02-05", estEnd: "2026-03-20", status: "em dia" },
+                    { name: "Validação de regras de negócio", progress: 40, responsible: "Mariana Costa", start: "2026-03-01", estEnd: "2026-04-10", status: "atrasado" }
+                ]},
+                { id: 1, name: "TI VAA", color: "amber", progress: 73, tasks: [
+                    { name: "Provisionamento do servidor", progress: 100, responsible: "Pedro Lima", start: "2026-01-08", estEnd: "2026-01-18", status: "concluído" },
+                    { name: "Segurança e backups", progress: 90, responsible: "Laura Ferreira", start: "2026-01-19", estEnd: "2026-02-15", status: "em dia" },
+                    { name: "Monitoramento do ambiente", progress: 55, responsible: "Pedro Lima", start: "2026-02-16", estEnd: "2026-03-30", status: "em dia" }
+                ]},
+                { id: 2, name: "Operacional VAA", color: "violet", progress: 25, tasks: [
+                    { name: "Treinamento da equipe", progress: 35, responsible: "Dr. Rafael Vigna", start: "2026-03-03", estEnd: "2026-04-12", status: "em dia" },
+                    { name: "Criação dos fluxos internos", progress: 20, responsible: "Equipe Operacional", start: "2026-03-10", estEnd: "2026-04-20", status: "atrasado" }
+                ]},
+                { id: 3, name: "Prestador de Serviços", color: "emerald", progress: 5, tasks: [
+                    { name: "Kickoff com fornecedor", progress: 10, responsible: "André Freitas", start: "2026-03-15", estEnd: "2026-03-25", status: "atrasado" },
+                    { name: "Entrega da documentação", progress: 0, responsible: "Beatriz Oliveira", start: "2026-03-20", estEnd: "2026-04-05", status: "em dia" }
+                ]}
+            ];
         }
 
-        // ==================== VISÃO GERAL ====================
+        function loadData() {
+            const saved = localStorage.getItem('vignaIA_data');
+            groups = saved ? JSON.parse(saved) : defaultGroups();
+            recalculateAllGroupProgress();
+        }
+
+        function saveData() {
+            localStorage.setItem('vignaIA_data', JSON.stringify(groups));
+        }
+
+        function recalculateGroupProgress(group) {
+            if (!group.tasks.length) {
+                group.progress = 0;
+                return;
+            }
+            group.progress = Math.round(group.tasks.reduce((sum, task) => sum + Number(task.progress || 0), 0) / group.tasks.length);
+        }
+
+        function recalculateAllGroupProgress() {
+            groups.forEach(recalculateGroupProgress);
+        }
+
+        function ensureTeamExists(teamName) {
+            let group = groups.find(item => item.name.toLowerCase() === teamName.toLowerCase());
+            if (group) return group;
+
+            const newId = groups.length ? Math.max(...groups.map(g => g.id)) + 1 : 0;
+            group = {
+                id: newId,
+                name: teamName,
+                color: groupColors[teamName] || 'sky',
+                progress: 0,
+                tasks: []
+            };
+            groups.push(group);
+            if (!teamMembersByGroup[teamName]) teamMembersByGroup[teamName] = [];
+            renderGroupTabs();
+            return group;
+        }
+
+        function normalizeStatus(status) {
+            const value = String(status || '').trim().toLowerCase();
+            if (["concluido", "concluído"].includes(value)) return 'concluído';
+            if (value === 'em dia' || value === 'emdia') return 'em dia';
+            if (value === 'atrasado') return 'atrasado';
+            return 'em dia';
+        }
+
+        function normalizeDate(value) {
+            if (!value) return '';
+            if (typeof value === 'number') {
+                const parsed = XLSX.SSF.parse_date_code(value);
+                if (parsed) {
+                    return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+                }
+            }
+
+            const text = String(value).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+            const brMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (brMatch) return `${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`;
+
+            const date = new Date(text);
+            if (!Number.isNaN(date.getTime())) {
+                return date.toISOString().slice(0, 10);
+            }
+
+            return '';
+        }
+
+        function parseProgress(value) {
+            const number = Number(String(value).replace('%', '').replace(',', '.').trim());
+            if (Number.isNaN(number)) return 0;
+            return Math.max(0, Math.min(100, Math.round(number)));
+        }
+
+        function showImportFeedback(message, type = 'success') {
+            const el = document.getElementById('import-feedback');
+            el.classList.remove('hidden', 'border-emerald-500/40', 'text-emerald-300', 'bg-emerald-500/10', 'border-red-500/40', 'text-red-300', 'bg-red-500/10');
+            if (type === 'success') {
+                el.classList.add('border-emerald-500/40', 'text-emerald-300', 'bg-emerald-500/10');
+            } else {
+                el.classList.add('border-red-500/40', 'text-red-300', 'bg-red-500/10');
+            }
+            el.textContent = message;
+        }
+
+        function renderGroupTabs() {
+            const tabs = document.getElementById('group-tabs');
+            tabs.innerHTML = groups.map((group, index) => `
+                <button onclick="switchGroup(${index})" class="${index === currentGroupIndex ? 'tab-active' : 'text-slate-400 hover:text-slate-200'} px-2 pb-4" data-index="${index}">
+                    ${group.name}
+                </button>
+            `).join('');
+        }
+
         function switchGroup(index) {
             currentGroupIndex = index;
-            document.querySelectorAll('#group-tabs button').forEach(btn => btn.classList.toggle('tab-active', parseInt(btn.dataset.index) === index));
+            renderGroupTabs();
             renderGroupContent();
+        }
+
+        function setActiveNav(section) {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.dataset.section === section) {
+                    link.classList.add('bg-white/10', 'text-white', 'font-semibold');
+                    link.classList.remove('text-slate-400');
+                } else {
+                    link.classList.remove('bg-white/10', 'text-white', 'font-semibold');
+                    link.classList.add('text-slate-400');
+                }
+            });
+        }
+
+        function navigateToSection(section) {
+            document.querySelectorAll('#main-content > div').forEach(d => d.classList.add('hidden'));
+            document.getElementById(section).classList.remove('hidden');
+            setActiveNav(section);
+
+            if (section === 'charts') createAllCharts(activeChartPeriod);
+            if (section === 'timeline') {
+                currentPage = 1;
+                applyTimelineFilters();
+            }
+            if (section === 'tasks') renderAllTasks();
+            if (section === 'overview') renderGroupContent();
+        }
+
+        function getFlattenedTasks() {
+            let all = [];
+            groups.forEach((group, gIdx) => {
+                group.tasks.forEach((task, tIdx) => {
+                    all.push({ ...task, gIdx, tIdx, groupName: group.name });
+                });
+            });
+            return all;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getActiveTimelineTasks() {
+            return (filteredTimelineTasks.length || Object.values(getFilterValues()).some(Boolean))
+                ? filteredTimelineTasks
+                : getFlattenedTasks();
+        }
+
+        function getTasksByPeriod(period) {
+            const tasks = getFlattenedTasks();
+            if (period === 'all') return tasks;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (period === '30d') {
+                const start = new Date(today);
+                start.setDate(start.getDate() - 30);
+                return tasks.filter(task => {
+                    const baseDate = task.estEnd || task.start;
+                    if (!baseDate) return false;
+                    const d = new Date(baseDate + 'T00:00:00');
+                    return !Number.isNaN(d.getTime()) && d >= start && d <= today;
+                });
+            }
+
+            if (period === 'this-month') {
+                const year = today.getFullYear();
+                const month = today.getMonth();
+                return tasks.filter(task => {
+                    const baseDate = task.estEnd || task.start;
+                    if (!baseDate) return false;
+                    const d = new Date(baseDate + 'T00:00:00');
+                    return !Number.isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month;
+                });
+            }
+
+            return tasks;
+        }
+
+        function rebuildFilteredTimelineIfNeeded() {
+            const hasFilter = Object.values(getFilterValues()).some(Boolean);
+            if (hasFilter) {
+                applyTimelineFilters();
+            } else {
+                filteredTimelineTasks = [];
+                renderTimeline();
+            }
         }
 
         function renderGroupContent() {
             const group = groups[currentGroupIndex];
-            let html = `<div><h2 class="text-3xl font-semibold mb-2">${group.name}</h2><p class="text-slate-400 mb-8">Acompanhamento em tempo real</p>`;
-            
-            group.tasks.forEach(task => {
-                const barColor = task.progress === 100 ? 'from-emerald-400 to-teal-400' : `from-${group.color}-400 to-${group.color}-500`;
-                html += `
-                    <div class="task-row glass-card rounded-3xl p-6 flex items-center gap-6 mb-4">
-                        <div class="flex-1">
-                            <p class="text-lg font-medium">${task.name}</p>
-                        </div>
-                        <div class="w-56">
-                            <div class="progress-bar"><div class="progress-fill bg-gradient-to-r ${barColor}" style="--progress-width: ${task.progress}%; width: 0%"></div></div>
-                        </div>
-                        <div class="w-28 text-right">${getStatusBadge(task.status)}</div>
-                        <div class="w-20 text-right font-bold">${task.progress}%</div>
-                    </div>`;
-            });
-            html += `</div>`;
+            if (!group) return;
+
+            let html = `<h2 class="text-3xl font-semibold mb-6">${group.name}</h2>`;
+
+            if (!group.tasks.length) {
+                html += `<div class="glass-card rounded-3xl p-6 text-slate-400">Nenhuma tarefa cadastrada para esta equipe.</div>`;
+            } else {
+                group.tasks.forEach(task => {
+                    const color = task.progress === 100 ? 'emerald' : group.color;
+                    html += `
+                        <div class="glass-card rounded-3xl p-6 flex items-center gap-6 mb-4 task-row">
+                            <div class="flex-1">
+                                <p class="text-lg font-medium">${task.name}</p>
+                                <p class="text-sm text-slate-400">Responsável: <span class="font-medium">${task.responsible}</span></p>
+                            </div>
+                            <div class="w-56"><div class="progress-bar"><div class="progress-fill bg-gradient-to-r from-${color}-400 to-${color}-500" style="width: ${task.progress}%"></div></div></div>
+                            <div class="w-32">${getStatusBadge(task.status)}</div>
+                            <div class="w-20 text-right font-bold">${task.progress}%</div>
+                        </div>`;
+                });
+            }
             document.getElementById('group-content').innerHTML = html;
         }
 
-        // ==================== GRÁFICOS COM FILTROS ====================
-        function filterCharts(btn, period) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-violet-600', 'text-white'));
-            btn.classList.add('active', 'bg-violet-600', 'text-white');
-            
-            // Simula mudança de dados conforme filtro
-            const lineData = period === 'all' ? [12,28,45,62,71,78] : 
-                             period === '30d' ? [65,68,71,74,76,78] : 
-                             period === 'this-month' ? [70,72,74,76,77,78] : [45,52,58,65,71,78];
-            
-            if (currentCharts && currentCharts.line) currentCharts.line.data.datasets[0].data = lineData;
-            if (currentCharts && currentCharts.line) currentCharts.line.update();
-        }
-
-        function createCharts() {
-            // Destruir gráficos antigos para evitar crescimento infinito
-            if (currentCharts) {
-                Object.values(currentCharts).forEach(chart => chart && chart.destroy());
-            }
-
-            currentCharts = {
-                line: new Chart(document.getElementById('overallLineChart'), {
-                    type: 'line',
-                    data: { labels: ['10 Fev','25 Fev','10 Mar','25 Mar','10 Abr','25 Abr'], datasets: [{ label: 'Progresso', data: [12,28,45,62,71,78], borderColor: '#a5b4fc', borderWidth: 5, tension: 0.4 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }}
-                }),
-                bar: new Chart(document.getElementById('teamBarChart'), {
-                    type: 'bar',
-                    data: { labels: groups.map(g => g.name.split(' ').pop()), datasets: [{ data: groups.map(g => g.progress), backgroundColor: ['#6366f1','#f59e0b','#a78bfa','#10b981'] }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }}
-                }),
-                pie: new Chart(document.getElementById('statusPieChart'), {
-                    type: 'doughnut',
-                    data: { labels: ['Concluídas','Em dia','Atrasadas'], datasets: [{ data: [48,32,20], backgroundColor: ['#10b981','#a5b4fc','#f43f5e'], borderWidth: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
-                })
+        function getFilterValues() {
+            return {
+                team: document.getElementById('filter-team').value.trim().toLowerCase(),
+                task: document.getElementById('filter-task').value.trim().toLowerCase(),
+                responsible: document.getElementById('filter-responsible').value.trim().toLowerCase(),
+                start: document.getElementById('filter-start').value,
+                estEnd: document.getElementById('filter-estEnd').value,
+                status: document.getElementById('filter-status').value.trim().toLowerCase(),
+                progress: document.getElementById('filter-progress').value.trim()
             };
         }
 
-        // ==================== CRONOGRAMA ====================
-        function renderTimeline() {
-            let html = '';
-            groups.forEach(group => {
-                group.tasks.forEach(task => {
-                    html += `
-                        <tr class="task-row">
-                            <td class="px-8 py-6 font-medium">${group.name}</td>
-                            <td class="px-8 py-6">${task.name}</td>
-                            <td class="px-8 py-6 text-slate-400">${task.start}</td>
-                            <td class="px-8 py-6"><input type="date" value="${task.estEnd}" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-2 text-white focus:outline-none focus:border-violet-400"></td>
-                            <td class="px-8 py-6 text-center">${getStatusBadge(task.status)}</td>
-                            <td class="px-8 py-6 text-center"><div class="inline-flex items-center gap-3"><div class="progress-bar w-24"><div class="progress-fill bg-gradient-to-r from-${group.color}-400 to-${group.color}-500" style="--progress-width: ${task.progress}%; width: 0%"></div></div><span class="font-bold">${task.progress}%</span></div></td>
-                        </tr>`;
-                });
+        function applyTimelineFilters() {
+            const filters = getFilterValues();
+            const allTasks = getFlattenedTasks();
+
+            filteredTimelineTasks = allTasks.filter(task => {
+                const teamMatch = !filters.team || task.groupName.toLowerCase().includes(filters.team);
+                const taskMatch = !filters.task || task.name.toLowerCase().includes(filters.task);
+                const responsibleMatch = !filters.responsible || String(task.responsible || '').toLowerCase().includes(filters.responsible);
+                const startMatch = !filters.start || task.start === filters.start;
+                const estEndMatch = !filters.estEnd || task.estEnd === filters.estEnd;
+                const statusMatch = !filters.status || String(task.status || '').toLowerCase() === filters.status;
+                const progressMatch = !filters.progress || Number(task.progress) === Number(filters.progress);
+                return teamMatch && taskMatch && responsibleMatch && startMatch && estEndMatch && statusMatch && progressMatch;
             });
-            document.getElementById('timeline-body').innerHTML = html;
+
+            currentPage = 1;
+            renderTimeline();
         }
 
-        // ==================== TAREFAS DETALHADAS ====================
+        function resetTimelineFilters() {
+            document.getElementById('filter-team').value = '';
+            document.getElementById('filter-task').value = '';
+            document.getElementById('filter-responsible').value = '';
+            document.getElementById('filter-start').value = '';
+            document.getElementById('filter-estEnd').value = '';
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-progress').value = '';
+            applyTimelineFilters();
+        }
+
+        function renderTimeline() {
+            const sourceTasks = filteredTimelineTasks.length || Object.values(getFilterValues()).some(Boolean)
+                ? filteredTimelineTasks
+                : getFlattenedTasks();
+
+            const totalRows = sourceTasks.length;
+            const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const paginatedTasks = sourceTasks.slice(start, start + rowsPerPage);
+
+            let html = '';
+            paginatedTasks.forEach((task) => {
+                const availableMembers = teamMembersByGroup[task.groupName] || [];
+                const allMembers = [...new Set([...(availableMembers || []), task.responsible].filter(Boolean))];
+
+                html += `
+                    <tr class="task-row hover:bg-slate-800/50">
+                        <td class="px-6 py-6 font-medium text-xs text-slate-400 uppercase">${escapeHtml(task.groupName)}</td>
+                        <td class="px-6 py-6">
+                            <input
+                                type="text"
+                                value="${escapeHtml(task.name)}"
+                                onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'name', this.value)"
+                                class="inline-edit-input"
+                                placeholder="Nome da tarefa"
+                            >
+                        </td>
+                        <td class="px-6 py-6">
+                            <div class="inline-block">
+                                <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'responsible', this.value)" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-violet-500 outline-none select-full-name">
+                                    ${allMembers.map(member => `<option value="${escapeHtml(member)}" ${task.responsible === member ? 'selected' : ''}>${escapeHtml(member)}</option>`).join('')}
+                                </select>
+                            </div>
+                        </td>
+                        <td class="px-6 py-6">
+                            <input type="date" value="${task.start || ''}" onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'start', this.value)" class="bg-transparent border-none text-sm outline-none w-full">
+                        </td>
+                        <td class="px-6 py-6">
+                            <input type="date" value="${task.estEnd || ''}" onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'estEnd', this.value)" class="bg-transparent border-none text-sm font-bold outline-none w-full">
+                        </td>
+                        <td class="px-6 py-6 text-center">
+                            <select onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'status', this.value)" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-xs">
+                                <option value="concluído" ${task.status === 'concluído' ? 'selected' : ''}>Concluído</option>
+                                <option value="em dia" ${task.status === 'em dia' ? 'selected' : ''}>Em dia</option>
+                                <option value="atrasado" ${task.status === 'atrasado' ? 'selected' : ''}>Atrasado</option>
+                            </select>
+                        </td>
+                        <td class="px-6 py-6 text-center">
+                            <div class="flex items-center justify-center gap-3">
+                                <div class="progress-bar w-20">
+                                    <div class="progress-fill bg-gradient-to-r from-violet-400 to-indigo-400" style="width: ${task.progress}%"></div>
+                                </div>
+                                <input type="number" min="0" max="100" value="${task.progress}" onchange="updateTask(${task.gIdx}, ${task.tIdx}, 'progress', parseInt(this.value || 0, 10))" class="w-14 bg-transparent text-center text-sm font-bold">
+                            </div>
+                        </td>
+                        <td class="px-6 py-6 text-center">
+                            <button onclick="deleteTask(${task.gIdx}, ${task.tIdx})" class="danger-btn px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap">
+                                <i class="fa-solid fa-trash-can mr-1"></i>Excluir
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+
+            document.getElementById('timeline-body').innerHTML = html || `<tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">Nenhum registro encontrado com os filtros aplicados.</td></tr>`;
+            renderPaginationControls(totalPages, totalRows);
+            document.getElementById('timeline-summary').textContent = `Exibindo ${paginatedTasks.length} de ${totalRows} tarefa(s) encontrada(s).`;
+        }
+
+        function renderPaginationControls(totalPages, totalRows) {
+            const container = document.getElementById('pagination-controls');
+            const disabledPrev = currentPage === 1 || totalRows === 0;
+            const disabledNext = currentPage === totalPages || totalRows === 0;
+            container.innerHTML = `
+                <button onclick="changePage(-1)" ${disabledPrev ? 'disabled' : ''} class="pagination-btn px-4 py-2 hover:text-white transition-colors">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <span class="px-4 text-xs font-bold text-slate-400">Página ${totalRows === 0 ? 0 : currentPage} de ${totalRows === 0 ? 0 : totalPages}</span>
+                <button onclick="changePage(1)" ${disabledNext ? 'disabled' : ''} class="pagination-btn px-4 py-2 hover:text-white transition-colors">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            `;
+        }
+
+        function changePage(step) {
+            currentPage += step;
+            renderTimeline();
+        }
+
         function renderAllTasks() {
             let html = '';
             groups.forEach(group => {
-                html += `<h3 class="text-xl font-semibold mb-6 flex items-center gap-3"><span class="text-${group.color}-400">●</span> ${group.name}</h3>`;
+                html += `<h3 class="text-xl font-semibold mb-6 mt-12">${group.name}</h3>`;
+                if (!group.tasks.length) {
+                    html += `<div class="glass-card rounded-3xl p-6 text-slate-400">Nenhuma tarefa cadastrada.</div>`;
+                    return;
+                }
                 group.tasks.forEach(task => {
                     html += `
-                        <div class="glass-card rounded-3xl p-6 flex justify-between items-center mb-4">
-                            <div class="flex-1">${task.name}</div>
-                            <div class="flex items-center gap-4">
+                        <div class="glass-card rounded-3xl p-6 flex justify-between items-center mb-4 gap-4">
+                            <div>
+                                <p class="font-medium">${task.name}</p>
+                                <p class="text-sm text-slate-400">Responsável: ${task.responsible}</p>
+                            </div>
+                            <div class="flex items-center gap-6">
                                 ${getStatusBadge(task.status)}
-                                <span class="font-bold text-${task.progress === 100 ? 'emerald' : group.color}-400">${task.progress}%</span>
+                                <span class="font-bold text-lg">${task.progress}%</span>
                             </div>
                         </div>`;
                 });
@@ -362,36 +755,392 @@
             document.getElementById('all-tasks').innerHTML = html;
         }
 
-        // ==================== NAVEGAÇÃO ====================
-        function navigateToSection(section) {
-            document.querySelectorAll('#main-content > div').forEach(d => d.classList.add('hidden'));
-            document.getElementById(section).classList.remove('hidden');
+        function getStatusBadge(status) {
+            if (status === "concluído") return `<span class="status-badge bg-emerald-400/20 text-emerald-400">Concluído</span>`;
+            if (status === "em dia") return `<span class="status-badge bg-sky-400/20 text-sky-400">Em dia</span>`;
+            return `<span class="status-badge bg-red-400/20 text-red-400">Atrasado</span>`;
+        }
 
-            if (section === 'charts') createCharts();
-            if (section === 'timeline') renderTimeline();
-            if (section === 'tasks') renderAllTasks();
+        function updateTask(gIndex, tIndex, field, value) {
+            if (!groups[gIndex] || !groups[gIndex].tasks[tIndex]) return;
+            if (field === 'progress') value = Math.max(0, Math.min(100, Number(value || 0)));
+            if (field === 'status') value = normalizeStatus(value);
+            if (field === 'name') value = String(value || '').trim() || 'Nova tarefa';
+
+            groups[gIndex].tasks[tIndex][field] = value;
+            recalculateGroupProgress(groups[gIndex]);
+            saveData();
+            renderGroupContent();
+            renderAllTasks();
+
+            if (!document.getElementById('timeline').classList.contains('hidden')) {
+                rebuildFilteredTimelineIfNeeded();
+            }
+            if (!document.getElementById('charts').classList.contains('hidden')) {
+                createAllCharts(activeChartPeriod);
+            }
+        }
+
+        function deleteTask(gIndex, tIndex) {
+            if (!groups[gIndex] || !groups[gIndex].tasks[tIndex]) return;
+
+            const removedTaskName = groups[gIndex].tasks[tIndex].name || 'tarefa';
+            const confirmed = confirm(`Deseja excluir a tarefa "${removedTaskName}"?`);
+            if (!confirmed) return;
+
+            groups[gIndex].tasks.splice(tIndex, 1);
+            recalculateGroupProgress(groups[gIndex]);
+            saveData();
+            renderGroupTabs();
+            if (currentGroupIndex >= groups.length) currentGroupIndex = Math.max(groups.length - 1, 0);
+            renderGroupContent();
+            renderAllTasks();
+
+            if (!document.getElementById('timeline').classList.contains('hidden')) {
+                rebuildFilteredTimelineIfNeeded();
+            }
+            if (!document.getElementById('charts').classList.contains('hidden')) {
+                createAllCharts(activeChartPeriod);
+            }
+        }
+
+        function saveTimeline() {
+            saveData();
+            alert('✅ Alterações do cronograma salvas com sucesso!');
+        }
+
+        function createAllCharts(period = activeChartPeriod) {
+            activeChartPeriod = period;
+            const selectedTasks = getTasksByPeriod(period);
+
+            if (charts.line) charts.line.destroy();
+            if (charts.bar) charts.bar.destroy();
+            if (charts.pie) charts.pie.destroy();
+
+            const ctxLine = document.getElementById('overallLineChart').getContext('2d');
+            const ctxBar = document.getElementById('teamBarChart').getContext('2d');
+            const ctxPie = document.getElementById('statusPieChart').getContext('2d');
+
+            const labelsByPeriod = {
+                all: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+                '30d': ['-30d', '-25d', '-20d', '-15d', '-10d', 'Hoje'],
+                'this-month': ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Hoje']
+            };
+
+            const timelineBase = selectedTasks.length
+                ? selectedTasks
+                    .slice()
+                    .sort((a, b) => (a.estEnd || a.start || '').localeCompare(b.estEnd || b.start || ''))
+                    .map(task => Number(task.progress || 0))
+                : [0];
+
+            const bucketCount = 6;
+            const lineData = Array.from({ length: bucketCount }, (_, index) => {
+                const end = Math.max(1, Math.ceil(((index + 1) / bucketCount) * timelineBase.length));
+                const slice = timelineBase.slice(0, end);
+                const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+                return Math.round(avg);
+            });
+
+            const grouped = groups.map(group => {
+                const tasks = selectedTasks.filter(task => task.groupName === group.name);
+                const avg = tasks.length
+                    ? Math.round(tasks.reduce((sum, task) => sum + Number(task.progress || 0), 0) / tasks.length)
+                    : 0;
+                return { name: group.name, progress: avg };
+            });
+
+            const done = selectedTasks.filter(t => t.status === 'concluído').length;
+            const onTrack = selectedTasks.filter(t => t.status === 'em dia').length;
+            const delayed = selectedTasks.filter(t => t.status === 'atrasado').length;
+
+            const subtitleMap = {
+                all: 'Visão completa do projeto.',
+                '30d': 'Recorte com tarefas dos últimos 30 dias.',
+                'this-month': 'Recorte apenas das tarefas deste mês.'
+            };
+            document.getElementById('line-chart-subtitle').textContent = `${subtitleMap[period]} Total de tarefas consideradas: ${selectedTasks.length}.`;
+
+            charts.line = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: labelsByPeriod[period] || labelsByPeriod.all,
+                    datasets: [{
+                        label: 'Progresso médio',
+                        data: lineData,
+                        borderColor: '#a5b4fc',
+                        backgroundColor: 'rgba(165, 180, 252, 0.15)',
+                        fill: true,
+                        borderWidth: 4,
+                        tension: 0.35,
+                        pointRadius: 4,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y}%` } }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { color: '#cbd5e1', callback: (value) => `${value}%` },
+                            grid: { color: 'rgba(148, 163, 184, 0.12)' }
+                        },
+                        x: {
+                            ticks: { color: '#cbd5e1' },
+                            grid: { color: 'rgba(148, 163, 184, 0.08)' }
+                        }
+                    }
+                }
+            });
+
+            charts.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: grouped.map(g => g.name),
+                    datasets: [{
+                        label: 'Progresso médio',
+                        data: grouped.map(g => g.progress),
+                        backgroundColor: ['#6366f1', '#f59e0b', '#a78bfa', '#10b981', '#38bdf8', '#f472b6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y}%` } }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { color: '#cbd5e1', callback: (value) => `${value}%` },
+                            grid: { color: 'rgba(148, 163, 184, 0.12)' }
+                        },
+                        x: {
+                            ticks: { color: '#cbd5e1' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            charts.pie = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Concluídas', 'Em dia', 'Atrasadas'],
+                    datasets: [{
+                        data: [done, onTrack, delayed],
+                        backgroundColor: ['#10b981', '#a5b4fc', '#f43f5e'],
+                        borderColor: ['#10b981', '#a5b4fc', '#f43f5e'],
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            labels: { color: '#cbd5e1', boxWidth: 14, padding: 18 }
+                        }
+                    }
+                }
+            });
+
+            setTimeout(() => {
+                charts.line?.resize();
+                charts.bar?.resize();
+                charts.pie?.resize();
+            }, 50);
+        }
+
+        function applyFilter(btn, period) {
+            activeChartPeriod = period;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('bg-violet-600', 'text-white');
+                b.classList.add('text-slate-300');
+            });
+            btn.classList.add('bg-violet-600', 'text-white');
+            btn.classList.remove('text-slate-300');
+            createAllCharts(period);
+        }
+
+        function exportTimelineToExcel() {
+            const tasks = getActiveTimelineTasks();
+            const rows = tasks.map(task => ({
+                'Equipe': task.groupName,
+                'Tarefa': task.name,
+                'Responsável': task.responsible,
+                'Data Inicio': task.start || '',
+                'Data Estimada': task.estEnd || '',
+                'Status': task.status,
+                'Progresso': Number(task.progress || 0)
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{
+                'Equipe': '',
+                'Tarefa': '',
+                'Responsável': '',
+                'Data Inicio': '',
+                'Data Estimada': '',
+                'Status': '',
+                'Progresso': ''
+            }]);
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Cronograma Geral');
+            XLSX.writeFile(workbook, 'cronograma_geral_vigna_ia.xlsx');
+        }
+
+        function downloadImportTemplate() {
+            const sampleRows = [
+                { 'Equipe': 'Desenvolvimento VAA', 'Tarefa': 'Nova funcionalidade', 'Responsável': 'Ana Silva', 'Progresso': 45, 'Status': 'em dia', 'Data Inicio': '2026-03-25', 'Data Estimada': '2026-04-10' },
+                { 'Equipe': 'TI VAA', 'Tarefa': 'Validação de infraestrutura', 'Responsável': 'Pedro Lima', 'Progresso': 100, 'Status': 'concluído', 'Data Inicio': '2026-03-10', 'Data Estimada': '2026-03-20' },
+                { 'Equipe': 'Prestador de Serviços', 'Tarefa': 'Entrega de documentação', 'Responsável': 'Beatriz Oliveira', 'Progresso': 10, 'Status': 'atrasado', 'Data Inicio': '2026-03-28', 'Data Estimada': '2026-04-15' }
+            ];
+
+            const worksheet = XLSX.utils.json_to_sheet(sampleRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Modelo');
+            XLSX.writeFile(workbook, 'modelo_importacao_vigna_ia.xlsx');
+        }
+
+        function handleImportFile(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                    importRows(rows);
+                } catch (error) {
+                    console.error(error);
+                    showImportFeedback('Não foi possível processar o arquivo. Verifique se ele está em Excel ou CSV válido.', 'error');
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function importRows(rows) {
+            if (!rows.length) {
+                showImportFeedback('O arquivo está vazio ou sem dados válidos.', 'error');
+                return;
+            }
+
+            let imported = 0;
+            let ignored = 0;
+
+            rows.forEach(row => {
+                const team = String(row['Equipe'] || row['equipe'] || '').trim();
+                const taskName = String(row['Tarefa'] || row['tarefa'] || row['Tarefa / Entrega'] || '').trim();
+                const responsible = String(row['Responsável'] || row['Responsavel'] || row['responsavel'] || '').trim();
+                const progress = parseProgress(row['Progresso'] || row['% Concluído'] || row['% Concluido'] || 0);
+                const status = normalizeStatus(row['Status'] || 'em dia');
+                const start = normalizeDate(row['Data Inicio'] || row['Data Início'] || row['Inicio'] || row['Início'] || row['Início da tarefa'] || '');
+                const estEnd = normalizeDate(row['Data Estimada'] || row['Estimativa'] || row['Data Final'] || '');
+
+                if (!team || !taskName) {
+                    ignored += 1;
+                    return;
+                }
+
+                const group = ensureTeamExists(team);
+                if (responsible) {
+                    teamMembersByGroup[team] = [...new Set([...(teamMembersByGroup[team] || []), responsible])];
+                }
+
+                group.tasks.push({
+                    name: taskName,
+                    responsible: responsible || (teamMembersByGroup[team]?.[0] || 'Responsável não informado'),
+                    progress,
+                    start,
+                    estEnd,
+                    status
+                });
+                imported += 1;
+            });
+
+            recalculateAllGroupProgress();
+            saveData();
+            renderGroupTabs();
+            renderGroupContent();
+            renderAllTasks();
+            createAllCharts();
+            applyTimelineFilters();
+
+            if (imported > 0) {
+                showImportFeedback(`Importação concluída com sucesso. ${imported} tarefa(s) adicionada(s)${ignored ? ` e ${ignored} linha(s) ignorada(s)` : ''}.`, 'success');
+            } else {
+                showImportFeedback('Nenhuma linha válida foi importada. Confira as colunas do arquivo modelo.', 'error');
+            }
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const allTasks = getFlattenedTasks();
+
+            doc.setFontSize(18);
+            doc.text('VIGNA.IA - Resumo do Projeto', 14, 20);
+            doc.setFontSize(11);
+            doc.text(`Data de exportação: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+
+            let y = 40;
+            groups.forEach(group => {
+                if (y > 260) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.setFontSize(13);
+                doc.text(`${group.name} - ${group.progress}%`, 14, y);
+                y += 8;
+                doc.setFontSize(10);
+                group.tasks.forEach(task => {
+                    if (y > 280) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(`• ${task.name} | ${task.responsible} | ${task.status} | ${task.progress}%`, 18, y);
+                    y += 6;
+                });
+                y += 6;
+            });
+
+            if (!allTasks.length) {
+                doc.text('Nenhuma tarefa cadastrada.', 14, y);
+            }
+
+            doc.save('vigna_ia_dashboard.pdf');
         }
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
         function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
 
-        function exportToPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFontSize(22); doc.text("VIGNA.IA - Dashboard", 20, 30);
-            doc.setFontSize(12); doc.text("Gerado em: " + new Date().toLocaleDateString('pt-BR'), 20, 45);
-            let y = 70;
-            groups.forEach(g => {
-                doc.setFontSize(14); doc.text(g.name, 20, y); y += 10;
-                doc.setFontSize(11); doc.text(`Progresso: ${g.progress}%`, 30, y); y += 12;
-            });
-            doc.save("VIGNA.IA_Dashboard.pdf");
-        }
-
-        // ==================== INICIALIZAÇÃO ====================
         window.onload = () => {
+            loadData();
+            renderGroupTabs();
             renderGroupContent();
-            console.log('%c✅ Dashboard VIGNA.IA atualizado: filtros nos gráficos + status + layout melhorado + gráficos corrigidos!', 'color:#c4d0ff; font-weight:700');
+            renderAllTasks();
+            setActiveNav('overview');
+            filteredTimelineTasks = [];
+            console.log('%c✅ VIGNA.IA - versão completa com filtros, importação, exclusão, exportação Excel e gráficos corrigidos', 'color:#a5b4fc; font-weight:700');
         };
     </script>
 </body>
