@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard • VIGNA.IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+            background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+        }
+
+        .sidebar {
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+        }
+
+        .tab-active {
+            border-bottom: 4px solid #a5b4fc;
+            color: #e0e7ff;
+            font-weight: 700;
+            position: relative;
+        }
+        .tab-active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, #a5b4fc, #c4d0ff);
+            border-radius: 9999px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .task-row {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .task-row:hover {
+            transform: translateX(8px);
+            background: rgba(255, 255, 255, 0.09);
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: progressLoad 1.8s ease-in-out forwards;
+        }
+
+        @keyframes progressLoad {
+            0% { width: 0%; }
+            100% { width: var(--progress-width); }
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 2px 12px;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200">
+
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- SIDEBAR -->
+        <div id="sidebar" class="sidebar w-72 bg-slate-950 border-r border-slate-800 flex flex-col fixed lg:relative h-full z-50">
+            <div class="px-8 py-8 border-b border-slate-800 flex items-center gap-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-3xl flex items-center justify-center text-white text-3xl shadow-lg">🤖</div>
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tighter">VIGNA.IA</h1>
+                    <p class="text-xs text-slate-400 -mt-1">Inteligência Jurídica</p>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-6 py-10 space-y-2">
+                <a onclick="navigateToSection('overview'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl bg-white/10 text-white font-semibold">
+                    <i class="fa-solid fa-house w-5"></i><span>Visão Geral</span>
+                </a>
+                <a onclick="navigateToSection('charts'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all">
+                    <i class="fa-solid fa-chart-simple w-5"></i><span>Gráficos</span>
+                </a>
+                <a onclick="navigateToSection('timeline'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all">
+                    <i class="fa-solid fa-timeline w-5"></i><span>Cronograma Geral</span>
+                </a>
+                <a onclick="navigateToSection('tasks'); closeSidebar()" class="flex items-center gap-4 px-6 py-5 rounded-3xl text-slate-400 hover:bg-white/10 hover:text-white transition-all">
+                    <i class="fa-solid fa-list-check w-5"></i><span>Tarefas Detalhadas</span>
+                </a>
+            </nav>
+
+            <div class="mx-6 mb-8 p-5 glass-card rounded-3xl">
+                <div class="flex items-center gap-3">
+                    <img src="https://i.pravatar.cc/128?img=68" alt="" class="w-11 h-11 rounded-2xl ring-2 ring-violet-400">
+                    <div>
+                        <p class="font-semibold">João Compras</p>
+                        <p class="text-xs text-slate-400">Gerente do Projeto</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <div class="flex-1 flex flex-col">
+
+            <div class="h-16 bg-slate-950 border-b border-slate-800 px-6 lg:px-10 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="lg:hidden text-3xl p-2 text-slate-300"><i class="fa-solid fa-bars"></i></button>
+                    <h2 class="text-2xl font-semibold tracking-tight">VIGNA.IA</h2>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-3 bg-emerald-900/30 text-emerald-300 px-6 py-2 rounded-3xl text-sm font-medium">
+                        <div class="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+                        EM ANDAMENTO
+                    </div>
+                    <button onclick="exportToPDF()" class="flex items-center gap-3 bg-violet-600 hover:bg-violet-500 transition-colors px-8 h-11 rounded-3xl font-semibold shadow-lg shadow-violet-500/30">
+                        <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Exportar PDF</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto p-6 lg:p-10" id="main-content">
+
+                <!-- VISÃO GERAL -->
+                <div id="overview">
+                    <div class="mb-10">
+                        <h1 class="text-4xl font-bold tracking-tighter">Visão Geral do Projeto</h1>
+                        <p class="text-slate-400 mt-2">Atualizado em 25 de Março de 2025 • Meta: 30 Junho de 2026</p>
+                    </div>
+                    <div class="border-b border-slate-700 mb-10">
+                        <div class="flex gap-10 text-base overflow-x-auto pb-4" id="group-tabs">
+                            <button onclick="switchGroup(0)" class="tab-active px-2 pb-4" data-index="0">Equipe Dev Vigna</button>
+                            <button onclick="switchGroup(1)" class="px-2 pb-4 text-slate-400 hover:text-slate-200" data-index="1">Equipe TI Vigna</button>
+                            <button onclick="switchGroup(2)" class="px-2 pb-4 text-slate-400 hover:text-slate-200" data-index="2">Diretoria Vigna</button>
+                            <button onclick="switchGroup(3)" class="px-2 pb-4 text-slate-400 hover:text-slate-200" data-index="3">Equipe André Freitas</button>
+                        </div>
+                    </div>
+                    <div id="group-content" class="space-y-12"></div>
+                </div>
+
+                <!-- GRÁFICOS COM FILTROS -->
+                <div id="charts" class="hidden">
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+                        <h1 class="text-4xl font-bold tracking-tighter">Gráficos do Projeto</h1>
+                        
+                        <!-- Filtros -->
+                        <div class="flex flex-wrap gap-2 bg-slate-900 border border-slate-700 rounded-3xl p-1">
+                            <button onclick="filterCharts(this, 'all')" class="filter-btn active px-6 py-2 text-sm font-medium rounded-3xl">Todo o projeto</button>
+                            <button onclick="filterCharts(this, '30d')" class="filter-btn px-6 py-2 text-sm font-medium rounded-3xl">Últimos 30 dias</button>
+                            <button onclick="filterCharts(this, 'this-month')" class="filter-btn px-6 py-2 text-sm font-medium rounded-3xl">Este mês</button>
+                            <button onclick="filterCharts(this, '90d')" class="filter-btn px-6 py-2 text-sm font-medium rounded-3xl">Últimos 90 dias</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        <div class="glass-card rounded-3xl p-8">
+                            <h3 class="font-semibold text-lg mb-6">Evolução Geral</h3>
+                            <canvas id="overallLineChart" class="h-80"></canvas>
+                        </div>
+                        <div class="glass-card rounded-3xl p-8">
+                            <h3 class="font-semibold text-lg mb-6">Progresso por Equipe</h3>
+                            <canvas id="teamBarChart" class="h-80"></canvas>
+                        </div>
+                        <div class="glass-card rounded-3xl p-8 xl:col-span-2">
+                            <h3 class="font-semibold text-lg mb-6">Distribuição de Status</h3>
+                            <canvas id="statusPieChart" class="h-80 mx-auto max-w-md"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CRONOGRAMA -->
+                <div id="timeline" class="hidden">
+                    <h1 class="text-4xl font-bold tracking-tighter mb-8">Cronograma Geral</h1>
+                    <div class="glass-card rounded-3xl overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-slate-700 text-slate-400 text-sm">
+                                    <th class="text-left py-6 px-8 font-medium">Equipe</th>
+                                    <th class="text-left py-6 px-8 font-medium">Entrega</th>
+                                    <th class="text-left py-6 px-8 font-medium">Início</th>
+                                    <th class="text-left py-6 px-8 font-medium">Estimativa</th>
+                                    <th class="text-center py-6 px-8 font-medium">Status</th>
+                                    <th class="text-center py-6 px-8 font-medium">% Concluído</th>
+                                </tr>
+                            </thead>
+                            <tbody id="timeline-body" class="divide-y divide-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAREFAS -->
+                <div id="tasks" class="hidden">
+                    <h2 class="text-3xl font-bold mb-8">Todas as Tarefas</h2>
+                    <div id="all-tasks" class="space-y-12"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== DADOS REAIS COM STATUS ====================
+        const groups = [
+            { id: 0, name: "Equipe de Desenvolvimento Vigna Advogados", color: "indigo", progress: 78, tasks: [
+                { name: "Escopo técnico do projeto", progress: 100, start: "2025-02-10", estEnd: "2025-02-28", status: "concluído" },
+                { name: "Criação de usuário no banco de dados VAA", progress: 100, start: "2025-02-10", estEnd: "2025-02-28", status: "concluído" },
+                { name: "Sistema de tipagem de arquivos no LC", progress: 10, start: "2025-03-01", estEnd: "2025-04-15", status: "em dia" },
+                { name: "Ajuste no frontend de acordo com escopo", progress: 0, start: "2025-03-10", estEnd: "2025-04-20", status: "atrasado" }
+            ]},
+            { id: 1, name: "Equipe de TI Vigna Advogados", color: "amber", progress: 73, tasks: [
+                { name: "Cotação de servidor Linux", progress: 100, start: "2025-02-15", estEnd: "2025-02-28", status: "concluído" },
+                { name: "Criação de usuário na rede e VPN", progress: 100, start: "2025-02-20", estEnd: "2025-03-05", status: "concluído" },
+                { name: "Validação e assertividade do servidor", progress: 20, start: "2025-03-10", estEnd: "2025-04-10", status: "em dia" }
+            ]},
+            { id: 2, name: "Diretoria Vigna Advogados", color: "violet", progress: 25, tasks: [
+                { name: "Separação de teses para IA", progress: 20, start: "2025-02-25", estEnd: "2025-04-30", status: "em dia" },
+                { name: "Criação de pastas na rede VAA", progress: 10, start: "2025-03-01", estEnd: "2025-03-20", status: "atrasado" },
+                { name: "Acompanhamento do banco de teses", progress: 45, start: "2025-03-01", estEnd: "2025-05-15", status: "em dia" }
+            ]},
+            { id: 3, name: "Equipe de Desenvolvimento - André Freitas", color: "emerald", progress: 5, tasks: [
+                { name: "Mapeamento de dados no banco VAA", progress: 15, start: "2025-03-05", estEnd: "2025-04-15", status: "em dia" },
+                { name: "Análise de peças enviadas", progress: 0, start: "2025-03-15", estEnd: "2025-04-30", status: "atrasado" },
+                { name: "Criação de versão inicial para testes", progress: 0, start: "2025-04-01", estEnd: "2025-05-10", status: "em dia" }
+            ]}
+        ];
+
+        let currentGroupIndex = 0;
+        let currentCharts = null;
+
+        // ==================== STATUS HELPER ====================
+        function getStatusBadge(status) {
+            if (status === "concluído") return `<span class="status-badge bg-emerald-400/20 text-emerald-400">Concluído</span>`;
+            if (status === "em dia") return `<span class="status-badge bg-sky-400/20 text-sky-400">Em dia</span>`;
+            return `<span class="status-badge bg-red-400/20 text-red-400">Atrasado</span>`;
+        }
+
+        // ==================== VISÃO GERAL ====================
+        function switchGroup(index) {
+            currentGroupIndex = index;
+            document.querySelectorAll('#group-tabs button').forEach(btn => btn.classList.toggle('tab-active', parseInt(btn.dataset.index) === index));
+            renderGroupContent();
+        }
+
+        function renderGroupContent() {
+            const group = groups[currentGroupIndex];
+            let html = `<div><h2 class="text-3xl font-semibold mb-2">${group.name}</h2><p class="text-slate-400 mb-8">Acompanhamento em tempo real</p>`;
+            
+            group.tasks.forEach(task => {
+                const barColor = task.progress === 100 ? 'from-emerald-400 to-teal-400' : `from-${group.color}-400 to-${group.color}-500`;
+                html += `
+                    <div class="task-row glass-card rounded-3xl p-6 flex items-center gap-6 mb-4">
+                        <div class="flex-1">
+                            <p class="text-lg font-medium">${task.name}</p>
+                        </div>
+                        <div class="w-56">
+                            <div class="progress-bar"><div class="progress-fill bg-gradient-to-r ${barColor}" style="--progress-width: ${task.progress}%; width: 0%"></div></div>
+                        </div>
+                        <div class="w-28 text-right">${getStatusBadge(task.status)}</div>
+                        <div class="w-20 text-right font-bold">${task.progress}%</div>
+                    </div>`;
+            });
+            html += `</div>`;
+            document.getElementById('group-content').innerHTML = html;
+        }
+
+        // ==================== GRÁFICOS COM FILTROS ====================
+        function filterCharts(btn, period) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-violet-600', 'text-white'));
+            btn.classList.add('active', 'bg-violet-600', 'text-white');
+            
+            // Simula mudança de dados conforme filtro
+            const lineData = period === 'all' ? [12,28,45,62,71,78] : 
+                             period === '30d' ? [65,68,71,74,76,78] : 
+                             period === 'this-month' ? [70,72,74,76,77,78] : [45,52,58,65,71,78];
+            
+            if (currentCharts && currentCharts.line) currentCharts.line.data.datasets[0].data = lineData;
+            if (currentCharts && currentCharts.line) currentCharts.line.update();
+        }
+
+        function createCharts() {
+            // Destruir gráficos antigos para evitar crescimento infinito
+            if (currentCharts) {
+                Object.values(currentCharts).forEach(chart => chart && chart.destroy());
+            }
+
+            currentCharts = {
+                line: new Chart(document.getElementById('overallLineChart'), {
+                    type: 'line',
+                    data: { labels: ['10 Fev','25 Fev','10 Mar','25 Mar','10 Abr','25 Abr'], datasets: [{ label: 'Progresso', data: [12,28,45,62,71,78], borderColor: '#a5b4fc', borderWidth: 5, tension: 0.4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }}
+                }),
+                bar: new Chart(document.getElementById('teamBarChart'), {
+                    type: 'bar',
+                    data: { labels: groups.map(g => g.name.split(' ').pop()), datasets: [{ data: groups.map(g => g.progress), backgroundColor: ['#6366f1','#f59e0b','#a78bfa','#10b981'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }}
+                }),
+                pie: new Chart(document.getElementById('statusPieChart'), {
+                    type: 'doughnut',
+                    data: { labels: ['Concluídas','Em dia','Atrasadas'], datasets: [{ data: [48,32,20], backgroundColor: ['#10b981','#a5b4fc','#f43f5e'], borderWidth: 0 }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                })
+            };
+        }
+
+        // ==================== CRONOGRAMA ====================
+        function renderTimeline() {
+            let html = '';
+            groups.forEach(group => {
+                group.tasks.forEach(task => {
+                    html += `
+                        <tr class="task-row">
+                            <td class="px-8 py-6 font-medium">${group.name}</td>
+                            <td class="px-8 py-6">${task.name}</td>
+                            <td class="px-8 py-6 text-slate-400">${task.start}</td>
+                            <td class="px-8 py-6"><input type="date" value="${task.estEnd}" class="bg-slate-900 border border-slate-700 rounded-2xl px-4 py-2 text-white focus:outline-none focus:border-violet-400"></td>
+                            <td class="px-8 py-6 text-center">${getStatusBadge(task.status)}</td>
+                            <td class="px-8 py-6 text-center"><div class="inline-flex items-center gap-3"><div class="progress-bar w-24"><div class="progress-fill bg-gradient-to-r from-${group.color}-400 to-${group.color}-500" style="--progress-width: ${task.progress}%; width: 0%"></div></div><span class="font-bold">${task.progress}%</span></div></td>
+                        </tr>`;
+                });
+            });
+            document.getElementById('timeline-body').innerHTML = html;
+        }
+
+        // ==================== TAREFAS DETALHADAS ====================
+        function renderAllTasks() {
+            let html = '';
+            groups.forEach(group => {
+                html += `<h3 class="text-xl font-semibold mb-6 flex items-center gap-3"><span class="text-${group.color}-400">●</span> ${group.name}</h3>`;
+                group.tasks.forEach(task => {
+                    html += `
+                        <div class="glass-card rounded-3xl p-6 flex justify-between items-center mb-4">
+                            <div class="flex-1">${task.name}</div>
+                            <div class="flex items-center gap-4">
+                                ${getStatusBadge(task.status)}
+                                <span class="font-bold text-${task.progress === 100 ? 'emerald' : group.color}-400">${task.progress}%</span>
+                            </div>
+                        </div>`;
+                });
+            });
+            document.getElementById('all-tasks').innerHTML = html;
+        }
+
+        // ==================== NAVEGAÇÃO ====================
+        function navigateToSection(section) {
+            document.querySelectorAll('#main-content > div').forEach(d => d.classList.add('hidden'));
+            document.getElementById(section).classList.remove('hidden');
+
+            if (section === 'charts') createCharts();
+            if (section === 'timeline') renderTimeline();
+            if (section === 'tasks') renderAllTasks();
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(22); doc.text("VIGNA.IA - Dashboard", 20, 30);
+            doc.setFontSize(12); doc.text("Gerado em: " + new Date().toLocaleDateString('pt-BR'), 20, 45);
+            let y = 70;
+            groups.forEach(g => {
+                doc.setFontSize(14); doc.text(g.name, 20, y); y += 10;
+                doc.setFontSize(11); doc.text(`Progresso: ${g.progress}%`, 30, y); y += 12;
+            });
+            doc.save("VIGNA.IA_Dashboard.pdf");
+        }
+
+        // ==================== INICIALIZAÇÃO ====================
+        window.onload = () => {
+            renderGroupContent();
+            console.log('%c✅ Dashboard VIGNA.IA atualizado: filtros nos gráficos + status + layout melhorado + gráficos corrigidos!', 'color:#c4d0ff; font-weight:700');
+        };
+    </script>
+</body>
+</html>
